@@ -30,6 +30,11 @@ type Profiler struct {
 	wg          sync.WaitGroup
 	initialized bool
 	spanCh      chan *Span
+
+	// Store original runtime values for restoration
+	originalMemProfileRate   int
+	originalMutexFraction    int
+	originalBlockProfileRate int
 }
 
 // newProfiler is the internal constructor used by New
@@ -47,18 +52,17 @@ func newProfiler(config Config) (*Profiler, error) {
 	return p, nil
 }
 
-
 func (p *Profiler) collectProfiles(ctx context.Context, profileType profileType) {
 	defer p.wg.Done()
-	
+
 	ticker := time.NewTicker(p.config.SampleRate)
 	defer ticker.Stop()
-	
+
 	// Collect one profile immediately at startup
 	if err := p.collectProfile(ctx, profileType); err != nil {
 		fmt.Fprintf(os.Stderr, "Error collecting %s profile: %v\n", profileType, err)
 	}
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -96,26 +100,26 @@ func (p *Profiler) collectCPU(ctx context.Context) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer os.Remove(f.Name())
-	
+
 	if err := pprof.StartCPUProfile(f); err != nil {
 		f.Close()
 		return fmt.Errorf("failed to start CPU profile: %w", err)
 	}
-	
+
 	// Profile for the configured duration
 	profileCtx, cancel := context.WithTimeout(ctx, p.config.ProfileDuration)
 	defer cancel()
-	
+
 	select {
 	case <-profileCtx.Done():
 		// Profile duration completed
 	case <-p.stopCh:
 		// Profiler is stopping
 	}
-	
+
 	pprof.StopCPUProfile()
 	f.Close()
-	
+
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeCPU))
 }
 
@@ -125,15 +129,15 @@ func (p *Profiler) collectMemory(ctx context.Context) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer os.Remove(f.Name())
-	
+
 	// Force garbage collection to get accurate memory profile
 	runtime.GC()
-	
+
 	if err := pprof.WriteHeapProfile(f); err != nil {
 		f.Close()
 		return fmt.Errorf("failed to write memory profile: %w", err)
 	}
-	
+
 	f.Close()
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeMemory))
 }
@@ -144,12 +148,12 @@ func (p *Profiler) collectGoroutine(ctx context.Context) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer os.Remove(f.Name())
-	
+
 	if err := pprof.Lookup("goroutine").WriteTo(f, 0); err != nil {
 		f.Close()
 		return fmt.Errorf("failed to write goroutine profile: %w", err)
 	}
-	
+
 	f.Close()
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeGoroutine))
 }
@@ -160,12 +164,12 @@ func (p *Profiler) collectMutex(ctx context.Context) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer os.Remove(f.Name())
-	
+
 	if err := pprof.Lookup("mutex").WriteTo(f, 0); err != nil {
 		f.Close()
 		return fmt.Errorf("failed to write mutex profile: %w", err)
 	}
-	
+
 	f.Close()
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeMutex))
 }
@@ -176,12 +180,12 @@ func (p *Profiler) collectBlock(ctx context.Context) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer os.Remove(f.Name())
-	
+
 	if err := pprof.Lookup("block").WriteTo(f, 0); err != nil {
 		f.Close()
 		return fmt.Errorf("failed to write block profile: %w", err)
 	}
-	
+
 	f.Close()
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeBlock))
 }
@@ -189,13 +193,13 @@ func (p *Profiler) collectBlock(ctx context.Context) error {
 func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType string) error {
 	// Generate profile ID
 	profileID := uuid.New().String()
-	
+
 	// Upload the profile
 	_, err := p.config.Storage.Upload(ctx, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to upload profile: %w", err)
 	}
-	
+
 	// Send metadata
 	metadata := map[string]string{
 		"profile_id":   profileID,
@@ -203,15 +207,15 @@ func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType stri
 		"profile_type": profileType,
 		"timestamp":    fmt.Sprintf("%d", time.Now().Unix()),
 	}
-	
+
 	// Add user-provided tags
 	for k, v := range p.config.Tags {
 		metadata[k] = v
 	}
-	
+
 	if err := p.sendMetadata(ctx, metadata); err != nil {
 		return fmt.Errorf("failed to send metadata: %w", err)
 	}
-	
+
 	return nil
 }

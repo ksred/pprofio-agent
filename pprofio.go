@@ -24,19 +24,28 @@ func New(config Config) (*Profiler, error) {
 	if config.ProfileDuration == 0 {
 		config.ProfileDuration = DefaultProfileDuration
 	}
-	
+	if config.MemProfileRate == 0 {
+		config.MemProfileRate = DefaultMemProfileRate
+	}
+	if config.MutexFraction == 0 {
+		config.MutexFraction = DefaultMutexFraction
+	}
+	if config.BlockProfileRate == 0 {
+		config.BlockProfileRate = DefaultBlockProfileRate
+	}
+
 	// Create HTTP storage if not provided
 	if config.Storage == nil && config.APIKey != "" && config.IngestURL != "" {
 		config.Storage = NewHTTPStorage(config.IngestURL+"/upload", config.APIKey)
 	}
-	
+
 	// Enable CPU and Memory by default if nothing is enabled
-	if !config.EnableCPU && !config.EnableMemory && !config.EnableGoroutine && 
-	   !config.EnableMutex && !config.EnableBlock && !config.EnableCustom {
+	if !config.EnableCPU && !config.EnableMemory && !config.EnableGoroutine &&
+		!config.EnableMutex && !config.EnableBlock && !config.EnableCustom {
 		config.EnableCPU = true
 		config.EnableMemory = true
 	}
-	
+
 	return newProfiler(config)
 }
 
@@ -55,15 +64,22 @@ func (p *Profiler) start(ctx context.Context) error {
 		return fmt.Errorf("profiler already started")
 	}
 
+	// Store original runtime settings before configuring
+	p.originalMemProfileRate = runtime.MemProfileRate
+	// Note: runtime doesn't provide getters for mutex and block rates,
+	// so we store reasonable defaults to restore
+	p.originalMutexFraction = 0    // Default is disabled
+	p.originalBlockProfileRate = 0 // Default is disabled
+
 	// Configure runtime settings
 	if p.config.EnableMemory {
 		runtime.MemProfileRate = p.config.MemProfileRate
 	}
-	
+
 	if p.config.EnableMutex {
 		runtime.SetMutexProfileFraction(p.config.MutexFraction)
 	}
-	
+
 	if p.config.EnableBlock {
 		runtime.SetBlockProfileRate(p.config.BlockProfileRate)
 	}
@@ -73,27 +89,27 @@ func (p *Profiler) start(ctx context.Context) error {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeCPU)
 	}
-	
+
 	if p.config.EnableMemory {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeMemory)
 	}
-	
+
 	if p.config.EnableGoroutine {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeGoroutine)
 	}
-	
+
 	if p.config.EnableMutex {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeMutex)
 	}
-	
+
 	if p.config.EnableBlock {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeBlock)
 	}
-	
+
 	if p.config.EnableCustom {
 		p.wg.Add(1)
 		go p.processCustomSpans(ctx)
@@ -124,8 +140,14 @@ func (p *Profiler) stop() {
 	default:
 		close(p.stopCh)
 	}
-	
+
 	p.wg.Wait()
+
+	// Restore original runtime settings
+	runtime.MemProfileRate = p.originalMemProfileRate
+	runtime.SetMutexProfileFraction(p.originalMutexFraction)
+	runtime.SetBlockProfileRate(p.originalBlockProfileRate)
+
 	p.initialized = false
 }
 
@@ -138,7 +160,7 @@ func StartSpan(ctx context.Context, name string, tags ...string) (context.Contex
 		Start: time.Now(),
 		Tags:  make(map[string]string),
 	}
-	
+
 	// Convert tags slice to map
 	for i := 0; i < len(tags); i += 2 {
 		if i+1 < len(tags) {
@@ -147,7 +169,7 @@ func StartSpan(ctx context.Context, name string, tags ...string) (context.Contex
 			span.Tags[key] = value
 		}
 	}
-	
+
 	// Check if we have a profiler in the context
 	if prof, ok := ctx.Value(spanKey{}).(*Profiler); ok && prof != nil {
 		// Queue span for processing
@@ -158,7 +180,7 @@ func StartSpan(ctx context.Context, name string, tags ...string) (context.Contex
 			// Channel full, log and continue
 		}
 	}
-	
+
 	return ctx, span
 }
 

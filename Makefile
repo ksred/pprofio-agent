@@ -13,7 +13,7 @@ GOCOVER := $(GOCMD) tool cover
 GOMOD := $(GOCMD) mod
 
 # Files
-MAIN_PKG := ./example
+MAIN_PKG := ./examples/basic
 PACKAGES := $(shell $(GOCMD) list ./...)
 
 all: build
