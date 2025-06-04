@@ -40,9 +40,11 @@ tmp/
 tasks.json
 *.txt
 *.mdc
-# claude.md
 dev_workflow.md
 roo_rules.md 
 .roo/*
 self_improve.md
 task_master.md
+examples/basic/basic
+claude.md
+.taskmaster/config.json
