@@ -1,5 +1,12 @@
 # Pprofio Agent
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/pprofio/pprofio.svg)](https://pkg.go.dev/github.com/pprofio/pprofio)
+[![Go Report Card](https://goreportcard.com/badge/github.com/pprofio/pprofio)](https://goreportcard.com/report/github.com/pprofio/pprofio)
+[![Test](https://github.com/pprofio/pprofio/actions/workflows/test.yml/badge.svg)](https://github.com/pprofio/pprofio/actions/workflows/test.yml)
+[![Lint](https://github.com/pprofio/pprofio/actions/workflows/lint.yml/badge.svg)](https://github.com/pprofio/pprofio/actions/workflows/lint.yml)
+[![Coverage](https://codecov.io/gh/pprofio/pprofio/branch/main/graph/badge.svg)](https://codecov.io/gh/pprofio/pprofio)
+[![Release](https://img.shields.io/github/v/release/pprofio/pprofio.svg)](https://github.com/pprofio/pprofio/releases)
+
 Pprofio Agent is a lightweight, continuous profiling solution for Go applications. It collects runtime performance metrics with minimal overhead (<1% CPU) and uploads them to the Pprofio SaaS platform for analysis.
 
 ## Features
@@ -21,6 +28,11 @@ Pprofio Agent is a lightweight, continuous profiling solution for Go application
 ```bash
 go get github.com/pprofio/pprofio
 ```
+
+### Requirements
+
+- Go 1.20 or later
+- Linux, macOS, or Windows
 
 ## Quick Start
 
@@ -45,7 +57,11 @@ func main() {
     }
     
     // Create and start the profiler
-    p, _ := pprofio.New(cfg)
+    p, err := pprofio.New(cfg)
+    if err != nil {
+        panic(err)
+    }
+    
     ctx := context.Background()
     p.Start(ctx)
     defer p.Stop()
@@ -54,9 +70,52 @@ func main() {
 }
 ```
 
+### Configuration Options
+
+```go
+type Config struct {
+    APIKey          string            // Required: Your Pprofio API key
+    IngestURL       string            // Required: Pprofio ingest endpoint
+    ServiceName     string            // Required: Name of your service
+    SampleRate      time.Duration     // Profile collection interval (default: 60s)
+    Tags            map[string]string // Custom tags for profiles
+    EnableCPU       bool              // Enable CPU profiling (default: true)
+    EnableMemory    bool              // Enable memory profiling (default: true)
+    ProfileDuration time.Duration     // Profile collection duration (default: 10s)
+}
+```
+
 ## Documentation
 
-For detailed documentation, please see the [GoDoc](https://pkg.go.dev/github.com/pprofio/pprofio).
+- **[Go Package Documentation](https://pkg.go.dev/github.com/pprofio/pprofio)**: Complete API reference
+- **[Contributing Guide](CONTRIBUTING.md)**: Development setup and guidelines
+- **[Changelog](CHANGELOG.md)**: Version history and breaking changes
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+
+- Setting up your development environment
+- Running tests and linting
+- Submitting pull requests
+- Release process
+
+### Development Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/pprofio/pprofio.git
+cd pprofio
+
+# Install dependencies
+go mod download
+
+# Run tests
+go test -v -race ./...
+
+# Run linting
+golangci-lint run --timeout=10m
+```
 
 ## Implementation Phases
 

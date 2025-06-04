@@ -89,11 +89,11 @@ func TestMetadataClient(t *testing.T) {
 
 			// Test sending metadata
 			err := client.sendMetadata(context.Background(), metadata)
-			
+
 			if tc.expectErr && err == nil {
 				t.Errorf("sendMetadata() expected error, got nil")
 			}
-			
+
 			if !tc.expectErr && err != nil {
 				t.Errorf("sendMetadata() unexpected error: %v", err)
 			}

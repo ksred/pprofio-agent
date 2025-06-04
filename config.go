@@ -14,22 +14,22 @@ const (
 )
 
 type Config struct {
-	APIKey          string
-	IngestURL       string
-	SampleRate      time.Duration
-	ProfileDuration time.Duration
-	Storage         Storage
-	ServiceName     string
-	Tags            map[string]string
-	MemProfileRate  int
-	MutexFraction   int
+	APIKey           string
+	IngestURL        string
+	SampleRate       time.Duration
+	ProfileDuration  time.Duration
+	Storage          Storage
+	ServiceName      string
+	Tags             map[string]string
+	MemProfileRate   int
+	MutexFraction    int
 	BlockProfileRate int
-	EnableCPU       bool
-	EnableMemory    bool
-	EnableGoroutine bool
-	EnableMutex     bool
-	EnableBlock     bool
-	EnableCustom    bool
+	EnableCPU        bool
+	EnableMemory     bool
+	EnableGoroutine  bool
+	EnableMutex      bool
+	EnableBlock      bool
+	EnableCustom     bool
 }
 
 func (c *Config) validate() error {
@@ -64,7 +64,7 @@ func (c *Config) validate() error {
 	if c.MutexFraction <= 0 {
 		c.MutexFraction = DefaultMutexFraction
 	}
-	
+
 	if c.BlockProfileRate <= 0 {
 		c.BlockProfileRate = DefaultBlockProfileRate
 	}
@@ -79,21 +79,21 @@ func (c *Config) validate() error {
 
 func DefaultConfig(apiKey, ingestURL, serviceName string) Config {
 	return Config{
-		APIKey:          apiKey,
-		IngestURL:       ingestURL,
-		SampleRate:      DefaultSampleRate,
-		ProfileDuration: DefaultProfileDuration,
-		Storage:         &HTTPStorage{URL: ingestURL + "/upload", APIKey: apiKey},
-		ServiceName:     serviceName,
-		Tags:            make(map[string]string),
-		MemProfileRate:  DefaultMemProfileRate,
-		MutexFraction:   DefaultMutexFraction,
+		APIKey:           apiKey,
+		IngestURL:        ingestURL,
+		SampleRate:       DefaultSampleRate,
+		ProfileDuration:  DefaultProfileDuration,
+		Storage:          &HTTPStorage{URL: ingestURL + "/upload", APIKey: apiKey},
+		ServiceName:      serviceName,
+		Tags:             make(map[string]string),
+		MemProfileRate:   DefaultMemProfileRate,
+		MutexFraction:    DefaultMutexFraction,
 		BlockProfileRate: DefaultBlockProfileRate,
-		EnableCPU:       true,
-		EnableMemory:    true,
-		EnableGoroutine: false,
-		EnableMutex:     false,
-		EnableBlock:     false,
-		EnableCustom:    false,
+		EnableCPU:        true,
+		EnableMemory:     true,
+		EnableGoroutine:  false,
+		EnableMutex:      false,
+		EnableBlock:      false,
+		EnableCustom:     false,
 	}
 }

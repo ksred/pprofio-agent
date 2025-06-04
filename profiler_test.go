@@ -153,7 +153,7 @@ func TestCollectProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
-	
+
 	// Create a mock HTTP server for metadata
 	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -259,7 +259,7 @@ func TestCollectProfiles(t *testing.T) {
 
 func TestAPIUsage(t *testing.T) {
 	// Test the main package API as a user would use it
-	
+
 	// Create a temporary directory for storage
 	tempDir, err := os.MkdirTemp("", "pprofio-test")
 	if err != nil {
@@ -272,7 +272,7 @@ func TestAPIUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
-	
+
 	// Create a mock HTTP server for metadata
 	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -284,7 +284,7 @@ func TestAPIUsage(t *testing.T) {
 	cfg.Storage = storage
 	cfg.SampleRate = 20 * time.Millisecond
 	cfg.ProfileDuration = 10 * time.Millisecond
-	
+
 	// Create the profiler
 	p, err := New(cfg)
 	if err != nil {
@@ -294,7 +294,7 @@ func TestAPIUsage(t *testing.T) {
 	// Start profiling
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
 	defer cancel()
-	
+
 	if err := p.Start(ctx); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}

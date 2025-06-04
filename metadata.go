@@ -35,8 +35,8 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 		return fmt.Errorf("invalid ingest URL: %w", err)
 	}
 	// Skip HTTPS check in tests if running a localhost/127.0.0.1 URL
-	if parsedURL.Scheme != "https" && !strings.Contains(parsedURL.Host, "localhost") && 
-	   !strings.Contains(parsedURL.Host, "127.0.0.1") {
+	if parsedURL.Scheme != "https" && !strings.Contains(parsedURL.Host, "localhost") &&
+		!strings.Contains(parsedURL.Host, "127.0.0.1") {
 		return fmt.Errorf("HTTPS is required for ingest URL")
 	}
 

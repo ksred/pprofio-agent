@@ -88,7 +88,7 @@ func (s *HTTPStorage) readAndCompressFile(filePath string) ([]byte, error) {
 
 func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (string, error) {
 	var lastErr error
-	
+
 	for attempt := 0; attempt < s.Retries; attempt++ {
 		// Exponential backoff
 		if attempt > 0 {
@@ -102,44 +102,44 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 			lastErr = fmt.Errorf("failed to create request: %w", err)
 			continue
 		}
-		
+
 		req.Header.Set("Content-Type", "application/octet-stream")
 		req.Header.Set("Content-Encoding", "gzip")
 		req.Header.Set("Authorization", "Bearer "+s.APIKey)
-		
+
 		// Send the request
 		resp, err := s.Client.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
 			continue
 		}
-		
+
 		defer resp.Body.Close()
-		
+
 		// Handle HTTP errors
 		if resp.StatusCode == 401 || resp.StatusCode == 403 {
 			return "", fmt.Errorf("authentication failed: %d", resp.StatusCode)
 		}
-		
+
 		if resp.StatusCode == 429 || (resp.StatusCode >= 500 && resp.StatusCode < 600) {
 			lastErr = fmt.Errorf("server error: %d", resp.StatusCode)
 			continue
 		}
-		
+
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		}
-		
+
 		// Read response
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response: %w", err)
 			continue
 		}
-		
+
 		return string(body), nil
 	}
-	
+
 	return "", fmt.Errorf("upload failed after %d attempts: %w", s.Retries, lastErr)
 }
 
@@ -151,12 +151,12 @@ func NewFileStorage(directory string) (*FileStorage, error) {
 	if directory == "" {
 		return nil, errors.New("directory is required")
 	}
-	
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	return &FileStorage{Directory: directory}, nil
 }
 
@@ -164,27 +164,27 @@ func (s *FileStorage) Upload(ctx context.Context, filePath string) (string, erro
 	if s.Directory == "" {
 		return "", errors.New("directory is required")
 	}
-	
+
 	fileName := filepath.Base(filePath)
 	targetPath := filepath.Join(s.Directory, fileName)
-	
+
 	// Copy the file
 	source, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open source file: %w", err)
 	}
 	defer source.Close()
-	
+
 	dest, err := os.Create(targetPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create destination file: %w", err)
 	}
 	defer dest.Close()
-	
+
 	_, err = io.Copy(dest, source)
 	if err != nil {
 		return "", fmt.Errorf("failed to copy file: %w", err)
 	}
-	
+
 	return targetPath, nil
 }

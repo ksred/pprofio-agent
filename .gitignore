@@ -40,7 +40,7 @@ tmp/
 tasks.json
 *.txt
 *.mdc
-claude.md
+# claude.md
 dev_workflow.md
 roo_rules.md 
 .roo/*

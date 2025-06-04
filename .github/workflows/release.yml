@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+    
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-1.22-
+          ${{ runner.os }}-go-
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test -v -race ./...
+    
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --timeout=10m
+    
+    - name: Build
+      run: go build -v ./...
+    
+    - name: Get tag name
+      id: tag
+      run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        TAG_NAME="${{ steps.tag.outputs.tag }}"
+        
+        # Try to extract changes for this version from CHANGELOG.md
+        if [ -f CHANGELOG.md ]; then
+          # Look for version section in CHANGELOG.md
+          VERSION_WITHOUT_V=${TAG_NAME#v}
+          sed -n "/## \[${VERSION_WITHOUT_V}\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.txt
+          
+          # If version section not found, try with full tag name
+          if [ ! -s release_notes.txt ]; then
+            sed -n "/## \[${TAG_NAME}\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.txt
+          fi
+          
+          # If still empty, generate from git log
+          if [ ! -s release_notes.txt ]; then
+            echo "## Changes" > release_notes.txt
+            echo "" >> release_notes.txt
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              git log --pretty=format:"- %s" ${PREV_TAG}..HEAD >> release_notes.txt
+            else
+              git log --pretty=format:"- %s" HEAD >> release_notes.txt
+            fi
+          fi
+        else
+          # Generate changelog from git log since last tag
+          echo "## Changes" > release_notes.txt
+          echo "" >> release_notes.txt
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git log --pretty=format:"- %s" ${PREV_TAG}..HEAD >> release_notes.txt
+          else
+            git log --pretty=format:"- %s" HEAD >> release_notes.txt
+          fi
+        fi
+        
+        echo "Generated release notes:"
+        cat release_notes.txt
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: Release ${{ steps.tag.outputs.tag }}
+        body_path: release_notes.txt
+        draft: false
+        prerelease: ${{ contains(steps.tag.outputs.tag, 'alpha') || contains(steps.tag.outputs.tag, 'beta') || contains(steps.tag.outputs.tag, 'rc') }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Trigger Go module proxy update
+      run: |
+        # Trigger Go module proxy to fetch the new version
+        MODULE_PATH="github.com/pprofio/pprofio"
+        VERSION="${{ steps.tag.outputs.tag }}"
+        
+        echo "Triggering Go module proxy update for ${MODULE_PATH}@${VERSION}"
+        
+        # Try to fetch from proxy.golang.org (may take a few minutes to be available)
+        for i in {1..5}; do
+          echo "Attempt $i: Fetching from Go proxy..."
+          if curl -f -s "https://proxy.golang.org/${MODULE_PATH}/@v/${VERSION}.info" > /dev/null; then
+            echo "✅ Module successfully registered with Go proxy"
+            break
+          else
+            echo "⏳ Module not yet available on proxy, waiting 30 seconds..."
+            sleep 30
+          fi
+        done
+        
+        # Try to update pkg.go.dev documentation
+        echo "Triggering pkg.go.dev documentation update..."
+        curl -f -s "https://pkg.go.dev/${MODULE_PATH}@${VERSION}" > /dev/null || echo "pkg.go.dev will update shortly"
+        
+        echo "🎉 Release $VERSION is now available!"
+        echo "📦 Install with: go get ${MODULE_PATH}@${VERSION}"
+        echo "📚 Documentation: https://pkg.go.dev/${MODULE_PATH}@${VERSION}" 

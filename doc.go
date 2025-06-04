@@ -13,12 +13,12 @@ regression alerts.
   - Simple Integration: Import with minimal configuration
   - Low Overhead: <1% CPU/memory impact on your application
   - Multiple Metrics:
-    - CPU profiles (stack traces, CPU time)
-    - Memory profiles (allocations, heap size)
-    - Goroutine profiles (count, stack traces)
-    - Mutex contention profiles (wait time)
-    - Block profiles (I/O, syscall delays)
-    - Custom instrumentation (user-defined spans)
+  - CPU profiles (stack traces, CPU time)
+  - Memory profiles (allocations, heap size)
+  - Goroutine profiles (count, stack traces)
+  - Mutex contention profiles (wait time)
+  - Block profiles (I/O, syscall delays)
+  - Custom instrumentation (user-defined spans)
   - Flexible Storage: Upload to Pprofio SaaS or store locally
   - Secure: HTTPS and API key authentication
 
@@ -35,7 +35,7 @@ Basic usage:
 	import (
 		"context"
 		"time"
-		
+
 		"github.com/pprofio/pprofio"
 	)
 
@@ -48,12 +48,12 @@ Basic usage:
 			ServiceName: "my-service",
 			Tags:        map[string]string{"env": "prod"},
 		}
-		
+
 		// Create and start the profiler
 		p := pprofio.New(cfg)
 		ctx := context.Background()
 		p.Start(ctx)
-		
+
 		// Your application code here...
 	}
 
