@@ -2,14 +2,13 @@ package pprofio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type profileType string
@@ -191,21 +190,33 @@ func (p *Profiler) collectBlock(ctx context.Context) error {
 }
 
 func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType string) error {
-	// Generate profile ID
-	profileID := uuid.New().String()
-
-	// Upload the profile
-	_, err := p.config.Storage.Upload(ctx, filePath)
+	// Upload the profile and parse the returned JSON response
+	uploadResp, err := p.config.Storage.Upload(ctx, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to upload profile: %w", err)
 	}
 
-	// Send metadata
+	// Parse the JSON response
+	var response struct {
+		ProfileID  string `json:"profile_id"`
+		ProfileURL string `json:"profile_url"`
+		Type       string `json:"type"`
+	}
+	if err := json.Unmarshal([]byte(uploadResp), &response); err != nil {
+		return fmt.Errorf("failed to parse upload response: %w", err)
+	}
+
+	profileURL := response.ProfileURL
+	profileID := response.ProfileID
+	profileTypeFromResp := response.Type
+
+	// Send metadata with the returned profile_url
 	metadata := map[string]string{
-		"profile_id":   profileID,
-		"service_name": p.config.ServiceName,
-		"profile_type": profileType,
-		"timestamp":    fmt.Sprintf("%d", time.Now().Unix()),
+		"profile_id":  profileID,
+		"profile_url": profileURL, // Use the returned URL instead of generated UUID
+		"service":     p.config.ServiceName,
+		"type":        profileTypeFromResp,
+		"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 	}
 
 	// Add user-provided tags
@@ -213,8 +224,18 @@ func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType stri
 		metadata[k] = v
 	}
 
-	if err := p.sendMetadata(ctx, metadata); err != nil {
-		return fmt.Errorf("failed to send metadata: %w", err)
+	// If using stdout mode, output metadata to stdout as well
+	if p.config.OutputToStdout {
+		if stdoutStorage, ok := p.config.Storage.(*StdoutStorage); ok {
+			if err := stdoutStorage.OutputMetadata(metadata); err != nil {
+				return fmt.Errorf("failed to output metadata to stdout: %w", err)
+			}
+		}
+	} else {
+		// Send metadata to server in normal mode
+		if err := p.sendMetadata(ctx, metadata); err != nil {
+			return fmt.Errorf("failed to send metadata: %w", err)
+		}
 	}
 
 	return nil

@@ -75,6 +75,10 @@ test-coverage-html: test-coverage ## Generate HTML coverage report
 test-short: ## Run short tests only
 	$(GOTEST) -short -v ./...
 
+.PHONY: test-stdout
+test-stdout: ## Run stdout functionality tests
+	$(GOTEST) -v -run ".*[Ss]tdout.*" ./...
+
 .PHONY: benchmark
 benchmark: ## Run benchmarks
 	$(GOTEST) -bench=. -benchmem ./...
@@ -153,6 +157,24 @@ docs: ## Generate and serve documentation
 examples: ## Run examples
 	@echo "Running examples..."
 	$(GOTEST) -v ./examples/...
+
+.PHONY: run-basic-example
+run-basic-example: ## Build and run the basic example for demonstration
+	@echo "Building and running basic example..."
+	@echo "This demonstrates the basic usage of the pprofio package:"
+	@echo "----------------------------------------"
+	@cd examples/basic && go run main.go
+	@echo "----------------------------------------"
+	@echo "Example demonstration completed!"
+
+.PHONY: run-stdout-example
+run-stdout-example: ## Build and run the stdout example for demonstration
+	@echo "Building and running stdout example..."
+	@echo "This demonstrates the stdout output functionality:"
+	@echo "----------------------------------------"
+	@cd examples/stdout && go run main.go -demo
+	@echo "----------------------------------------"
+	@echo "Example demonstration completed!"
 
 # Development helpers
 .PHONY: install-tools

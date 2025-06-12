@@ -34,9 +34,12 @@ func New(config Config) (*Profiler, error) {
 		config.BlockProfileRate = DefaultBlockProfileRate
 	}
 
-	// Create HTTP storage if not provided
-	if config.Storage == nil && config.APIKey != "" && config.IngestURL != "" {
-		config.Storage = NewHTTPStorage(config.IngestURL+"/upload", config.APIKey)
+	// Create stdout storage if OutputToStdout is enabled
+	if config.OutputToStdout {
+		config.Storage = NewStdoutStorage()
+	} else if config.Storage == nil && config.APIKey != "" && config.IngestURL != "" {
+		// Create HTTP storage if not provided and not in stdout mode
+		config.Storage = NewHTTPStorage(config.IngestURL+"/upload", config.APIKey, config.Env)
 	}
 
 	// Enable CPU and Memory by default if nothing is enabled

@@ -2,6 +2,7 @@ package pprofio
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -315,4 +316,107 @@ func TestAPIUsage(t *testing.T) {
 
 	// Give it a moment to finalize
 	time.Sleep(5 * time.Millisecond)
+}
+
+func TestUploadProfileWithCorrectFlow(t *testing.T) {
+	// Expected profile URL that should be returned from upload
+	expectedProfileURL := "https://storage.pprofio.com/profiles/abc123.pprof"
+	metadataReceived := false
+	var receivedMetadata map[string]string
+
+	// Create a test server that simulates the correct two-step flow
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/upload":
+			// Step 1: Binary profile upload - return profile_url
+			if r.Header.Get("Authorization") != "Bearer test-key" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(expectedProfileURL))
+
+		case "/metadata":
+			// Step 2: Metadata should contain the profile_url from step 1
+			metadataReceived = true
+			if err := json.NewDecoder(r.Body).Decode(&receivedMetadata); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	// Create storage and profiler
+	storage := NewHTTPStorage(server.URL+"/upload", "test-key", "local")
+	config := Config{
+		Storage:     storage,
+		APIKey:      "test-key",
+		IngestURL:   server.URL,
+		ServiceName: "test-service",
+		Tags:        map[string]string{"env": "test"},
+		Env:         "local",
+	}
+
+	profiler, err := newProfiler(config)
+	if err != nil {
+		t.Fatalf("newProfiler() error = %v", err)
+	}
+
+	// Create test profile file
+	tmpFile, err := os.CreateTemp("", "cpu.pprof")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString("test profile data"); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	// Test the upload flow
+	err = profiler.uploadProfile(context.Background(), tmpFile.Name(), "cpu")
+	if err != nil {
+		t.Fatalf("uploadProfile() error = %v", err)
+	}
+
+	// Verify metadata was received
+	if !metadataReceived {
+		t.Error("Metadata was not received by the server")
+	}
+
+	// Verify metadata contains profile_url instead of profile_id
+	if receivedMetadata["profile_url"] != expectedProfileURL {
+		t.Errorf("Expected profile_url %q, got %q", expectedProfileURL, receivedMetadata["profile_url"])
+	}
+
+	// Verify metadata contains expected fields
+	if receivedMetadata["service"] != "test-service" {
+		t.Errorf("Expected service %q, got %q", "test-service", receivedMetadata["service"])
+	}
+
+	if receivedMetadata["type"] != "cpu" {
+		t.Errorf("Expected type %q, got %q", "cpu", receivedMetadata["type"])
+	}
+
+	if receivedMetadata["env"] != "test" {
+		t.Errorf("Expected env tag %q, got %q", "test", receivedMetadata["env"])
+	}
+
+	// Verify profile_id is NOT present (old behavior)
+	if _, exists := receivedMetadata["profile_id"]; exists {
+		t.Error("profile_id should not be present in metadata - should use profile_url instead")
+	}
+
+	// Verify timestamp is present
+	if receivedMetadata["timestamp"] == "" {
+		t.Error("timestamp should be present in metadata")
+	}
 }

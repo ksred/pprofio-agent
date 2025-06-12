@@ -12,33 +12,21 @@ import (
 )
 
 func main() {
-	// Create a directory for local storage
-	tempDir, err := os.MkdirTemp("", "pprofio-example")
-	if err != nil {
-		fmt.Printf("Failed to create temp directory: %v\n", err)
-		os.Exit(1)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Create file storage for local testing
-	storage, err := pprofio.NewFileStorage(tempDir)
-	if err != nil {
-		fmt.Printf("Failed to create storage: %v\n", err)
-		os.Exit(1)
-	}
-
 	// Configure the profiler
 	cfg := pprofio.Config{
-		APIKey:          "test-api-key",            // Not used with file storage but required
-		IngestURL:       "https://api.pprofio.com", // Not used with file storage but required
-		SampleRate:      10 * time.Second,          // More frequent for demonstration
+		APIKey:          "test-api-key",                 // Not used with file storage but required
+		IngestURL:       "http://localhost:8080/api/v1", // Not used with file storage but required
+		SampleRate:      10 * time.Second,               // More frequent for demonstration
 		ProfileDuration: 5 * time.Second,
-		Storage:         storage,
 		ServiceName:     "example-service",
 		Tags:            map[string]string{"env": "local", "version": "1.0.0"},
 		EnableCPU:       true,
 		EnableMemory:    true,
+		EnableGoroutine: true,
+		EnableMutex:     true,
+		EnableBlock:     true,
 		MemProfileRate:  4096,
+		Env:             "local",
 	}
 
 	// Create the profiler
@@ -59,8 +47,7 @@ func main() {
 	}
 	defer p.Stop()
 
-	fmt.Println("Profiler started! Collecting CPU and memory profiles every 10 seconds.")
-	fmt.Println("Profiles are being saved to:", tempDir)
+	fmt.Println("Profiler started! Collecting CPU, memory, goroutine, mutex, and block profiles every 10 seconds.")
 	fmt.Println("Press Ctrl+C to stop...")
 
 	// Create a workload to profile

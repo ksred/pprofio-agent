@@ -30,18 +30,22 @@ type Config struct {
 	EnableMutex      bool
 	EnableBlock      bool
 	EnableCustom     bool
+	OutputToStdout   bool
+	Env              string
 }
 
 func (c *Config) validate() error {
-	if c.APIKey == "" {
-		return errors.New("APIKey is required")
+	if !c.OutputToStdout {
+		if c.APIKey == "" {
+			return errors.New("APIKey is required")
+		}
+
+		if c.IngestURL == "" {
+			return errors.New("IngestURL is required")
+		}
 	}
 
-	if c.IngestURL == "" {
-		return errors.New("IngestURL is required")
-	}
-
-	if c.Storage == nil {
+	if !c.OutputToStdout && c.Storage == nil {
 		return errors.New("Storage is required")
 	}
 
@@ -95,5 +99,6 @@ func DefaultConfig(apiKey, ingestURL, serviceName string) Config {
 		EnableMutex:      false,
 		EnableBlock:      false,
 		EnableCustom:     false,
+		OutputToStdout:   false,
 	}
 }

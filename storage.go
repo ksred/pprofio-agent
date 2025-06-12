@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -24,14 +26,16 @@ type HTTPStorage struct {
 	APIKey  string
 	Client  *http.Client
 	Retries int
+	Env     string
 }
 
-func NewHTTPStorage(url, apiKey string) *HTTPStorage {
+func NewHTTPStorage(url, apiKey, env string) *HTTPStorage {
 	return &HTTPStorage{
 		URL:     url,
 		APIKey:  apiKey,
 		Client:  &http.Client{Timeout: 30 * time.Second},
 		Retries: 3,
+		Env:     env,
 	}
 }
 
@@ -45,7 +49,7 @@ func (s *HTTPStorage) Upload(ctx context.Context, filePath string) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("invalid URL: %w", err)
 	}
-	if parsedURL.Scheme != "https" {
+	if parsedURL.Scheme != "https" && s.Env != "local" {
 		return "", errors.New("HTTPS is required for secure uploads")
 	}
 
@@ -187,4 +191,76 @@ func (s *FileStorage) Upload(ctx context.Context, filePath string) (string, erro
 	}
 
 	return targetPath, nil
+}
+
+// StdoutStorage outputs profile data and metadata to stdout for testing purposes
+type StdoutStorage struct{}
+
+// NewStdoutStorage creates a new stdout storage instance
+func NewStdoutStorage() *StdoutStorage {
+	return &StdoutStorage{}
+}
+
+// Upload reads the profile file and outputs its contents to stdout in a structured format
+func (s *StdoutStorage) Upload(ctx context.Context, filePath string) (string, error) {
+	// Read the profile file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read profile file: %w", err)
+	}
+
+	// Output profile data header
+	fmt.Printf("PROFILE_DATA (size: %d bytes):\n", len(data))
+
+	// Try to parse and display the pprof data using go tool pprof
+	if err := s.displayPprofData(filePath); err != nil {
+		// If parsing fails, show basic info
+		fmt.Printf("  Binary pprof data (%d bytes) - use 'go tool pprof %s' to analyze\n", len(data), filePath)
+	}
+
+	fmt.Println() // Add separator line
+
+	return "stdout", nil
+}
+
+// displayPprofData uses go tool pprof to show readable profile information
+func (s *StdoutStorage) displayPprofData(filePath string) error {
+	// For now, just show basic file information
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return err
+	}
+
+	// Determine profile type from filename
+	profileType := "unknown"
+	if strings.Contains(filePath, "cpu") {
+		profileType = "CPU Profile"
+	} else if strings.Contains(filePath, "memory") || strings.Contains(filePath, "heap") {
+		profileType = "Memory/Heap Profile"
+	} else if strings.Contains(filePath, "goroutine") {
+		profileType = "Goroutine Profile"
+	} else if strings.Contains(filePath, "mutex") {
+		profileType = "Mutex Profile"
+	} else if strings.Contains(filePath, "block") {
+		profileType = "Block Profile"
+	}
+
+	fmt.Printf("  Type: %s\n", profileType)
+	fmt.Printf("  File: %s\n", filepath.Base(filePath))
+	fmt.Printf("  Size: %d bytes\n", info.Size())
+	fmt.Printf("  Created: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Analysis: Use 'go tool pprof %s' for detailed analysis\n", filePath)
+
+	return nil
+}
+
+// OutputMetadata outputs metadata to stdout in JSON format
+func (s *StdoutStorage) OutputMetadata(metadata map[string]string) error {
+	jsonData, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	fmt.Printf("METADATA: %s\n", string(jsonData))
+	return nil
 }
