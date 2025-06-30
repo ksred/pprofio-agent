@@ -328,13 +328,19 @@ func TestUploadProfileWithCorrectFlow(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/upload":
-			// Step 1: Binary profile upload - return profile_url
+			// Step 1: Binary profile upload - return JSON response
 			if r.Header.Get("Authorization") != "Bearer test-key" {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+			response := map[string]string{
+				"profile_id":  "abc123",
+				"profile_url": expectedProfileURL,
+				"type":        "cpu",
+			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(expectedProfileURL))
+			json.NewEncoder(w).Encode(response)
 
 		case "/metadata":
 			// Step 2: Metadata should contain the profile_url from step 1
@@ -410,9 +416,9 @@ func TestUploadProfileWithCorrectFlow(t *testing.T) {
 		t.Errorf("Expected env tag %q, got %q", "test", receivedMetadata["env"])
 	}
 
-	// Verify profile_id is NOT present (old behavior)
-	if _, exists := receivedMetadata["profile_id"]; exists {
-		t.Error("profile_id should not be present in metadata - should use profile_url instead")
+	// Verify profile_id is present in the metadata (along with profile_url)
+	if receivedMetadata["profile_id"] != "abc123" {
+		t.Errorf("Expected profile_id %q, got %q", "abc123", receivedMetadata["profile_id"])
 	}
 
 	// Verify timestamp is present

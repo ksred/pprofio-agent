@@ -40,7 +40,7 @@ func (p *Profiler) processCustomSpans(ctx context.Context) {
 		case span := <-p.spanCh:
 			spansLock.Lock()
 			spans[span.Name] = append(spans[span.Name], span)
-			spansLock.Lock()
+			spansLock.Unlock()
 
 		case <-flushTicker.C:
 			// Take a snapshot of current spans and reset

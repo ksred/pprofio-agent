@@ -47,8 +47,9 @@ func TestStdoutStorage_Upload(t *testing.T) {
 	output := string(buf[:n])
 
 	// Verify result
-	if result != "stdout" {
-		t.Errorf("StdoutStorage.Upload() result = %q, want %q", result, "stdout")
+	// The result should now be JSON containing profile metadata
+	if !strings.Contains(result, "profile_id") || !strings.Contains(result, "profile_url") {
+		t.Errorf("StdoutStorage.Upload() result = %q, want JSON with profile_id and profile_url", result)
 	}
 
 	// Verify output contains structured profile information
