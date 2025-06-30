@@ -19,9 +19,11 @@ func TestProfiler_sendMetadata_Success(t *testing.T) {
 	defer server.Close()
 
 	// Create a profiler with proper configuration
+	storage := NewMockJSONStorage()
 	config := Config{
 		APIKey:      "test-key",
 		IngestURL:   server.URL,
+		Storage:     storage,
 		ServiceName: "test-service",
 	}
 

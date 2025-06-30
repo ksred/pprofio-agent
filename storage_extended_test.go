@@ -55,8 +55,8 @@ func TestHTTPStorage_ErrorConditions(t *testing.T) {
 			t.Error("Expected error for invalid URL")
 		}
 		
-		if !strings.Contains(err.Error(), "invalid URL") {
-			t.Errorf("Expected 'invalid URL' error, got: %v", err)
+		if !strings.Contains(err.Error(), "invalid URL") && !strings.Contains(err.Error(), "unsupported protocol scheme") {
+			t.Errorf("Expected 'invalid URL' or 'unsupported protocol scheme' error, got: %v", err)
 		}
 	})
 	

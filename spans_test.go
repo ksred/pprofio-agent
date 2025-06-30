@@ -31,9 +31,11 @@ func TestSpan_End(t *testing.T) {
 
 func TestProfiler_processCustomSpans(t *testing.T) {
 	// Create a test profiler
+	storage := NewMockJSONStorage()
 	config := Config{
 		APIKey:       "test-key",
 		IngestURL:    "https://api.pprofio.com",
+		Storage:      storage,
 		SampleRate:   100 * time.Millisecond,
 		ServiceName:  "test-service",
 		EnableCustom: true,
@@ -91,9 +93,11 @@ func TestProfiler_processCustomSpans(t *testing.T) {
 }
 
 func TestProfiler_processCustomSpans_StopChannel(t *testing.T) {
+	storage := NewMockJSONStorage()
 	config := Config{
 		APIKey:       "test-key",
 		IngestURL:    "https://api.pprofio.com",
+		Storage:      storage,
 		SampleRate:   100 * time.Millisecond,
 		ServiceName:  "test-service",
 		EnableCustom: true,
@@ -118,9 +122,11 @@ func TestProfiler_processCustomSpans_StopChannel(t *testing.T) {
 }
 
 func TestProfiler_processCustomSpans_ContextDone(t *testing.T) {
+	storage := NewMockJSONStorage()
 	config := Config{
 		APIKey:       "test-key",
 		IngestURL:    "https://api.pprofio.com",
+		Storage:      storage,
 		SampleRate:   100 * time.Millisecond,
 		ServiceName:  "test-service",
 		EnableCustom: true,
@@ -145,9 +151,11 @@ func TestProfiler_processCustomSpans_ContextDone(t *testing.T) {
 }
 
 func TestProfiler_processSpans(t *testing.T) {
+	storage := NewMockJSONStorage()
 	config := Config{
 		APIKey:       "test-key",
 		IngestURL:    "https://api.pprofio.com",
+		Storage:      storage,
 		SampleRate:   100 * time.Millisecond,
 		ServiceName:  "test-service",
 		EnableCustom: true,
@@ -194,9 +202,11 @@ func TestProfiler_processSpans(t *testing.T) {
 }
 
 func TestProfiler_processCustomSpans_FlushTicker(t *testing.T) {
+	storage := NewMockJSONStorage()
 	config := Config{
 		APIKey:       "test-key",
 		IngestURL:    "https://api.pprofio.com",
+		Storage:      storage,
 		SampleRate:   50 * time.Millisecond, // Short interval for faster testing
 		ServiceName:  "test-service",
 		EnableCustom: true,

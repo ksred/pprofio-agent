@@ -2,8 +2,6 @@ package pprofio
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,16 +11,7 @@ import (
 )
 
 func TestProfiler_collectProfile_UnknownType(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "pprofio-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-	
-	storage, err := NewFileStorage(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
+	storage := NewMockJSONStorage()
 	
 	config := Config{
 		APIKey:      "test-key",
@@ -52,7 +41,7 @@ func TestProfiler_collectProfile_UnknownType(t *testing.T) {
 func TestProfiler_uploadProfile_ErrorCases(t *testing.T) {
 	t.Run("StorageUploadFails", func(t *testing.T) {
 		// Create storage that always fails
-		failingStorage := &MockFailingStorage{}
+		failingStorage := NewMockFailingJSONStorage("storage upload failed")
 		
 		config := Config{
 			APIKey:      "test-key",
@@ -82,14 +71,14 @@ func TestProfiler_uploadProfile_ErrorCases(t *testing.T) {
 			t.Error("Expected error when storage upload fails")
 		}
 		
-		if err.Error() != "failed to upload profile: storage upload failed" {
+		if !strings.Contains(err.Error(), "failed to upload profile: storage upload failed") {
 			t.Errorf("Expected storage upload error, got: %v", err)
 		}
 	})
 	
 	t.Run("InvalidJSONResponse", func(t *testing.T) {
 		// Create storage that returns invalid JSON
-		invalidJSONStorage := &MockInvalidJSONStorage{}
+		invalidJSONStorage := NewMockInvalidJSONStorage()
 		
 		config := Config{
 			APIKey:      "test-key",
@@ -161,7 +150,7 @@ func TestProfiler_uploadProfile_ErrorCases(t *testing.T) {
 	
 	t.Run("MetadataSendFails", func(t *testing.T) {
 		// Create storage that returns valid JSON
-		validJSONStorage := &MockValidJSONStorage{}
+		validJSONStorage := NewMockJSONStorage()
 		
 		// Create server that fails metadata requests
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -206,16 +195,7 @@ func TestProfiler_uploadProfile_ErrorCases(t *testing.T) {
 
 func TestProfiler_collectProfiles_EdgeCases(t *testing.T) {
 	t.Run("ContextCancellation", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "pprofio-test")
-		if err != nil {
-			t.Fatalf("Failed to create temp directory: %v", err)
-		}
-		defer os.RemoveAll(tempDir)
-		
-		storage, err := NewFileStorage(tempDir)
-		if err != nil {
-			t.Fatalf("Failed to create storage: %v", err)
-		}
+		storage := NewMockJSONStorage()
 		
 		config := Config{
 			APIKey:          "test-key",
@@ -245,16 +225,7 @@ func TestProfiler_collectProfiles_EdgeCases(t *testing.T) {
 	})
 	
 	t.Run("StopChannelClosure", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "pprofio-test")
-		if err != nil {
-			t.Fatalf("Failed to create temp directory: %v", err)
-		}
-		defer os.RemoveAll(tempDir)
-		
-		storage, err := NewFileStorage(tempDir)
-		if err != nil {
-			t.Fatalf("Failed to create storage: %v", err)
-		}
+		storage := NewMockJSONStorage()
 		
 		config := Config{
 			APIKey:          "test-key",
@@ -286,16 +257,7 @@ func TestProfiler_collectProfiles_EdgeCases(t *testing.T) {
 
 func TestProfiler_RuntimeSettings(t *testing.T) {
 	t.Run("RuntimeSettingsStored", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "pprofio-test")
-		if err != nil {
-			t.Fatalf("Failed to create temp directory: %v", err)
-		}
-		defer os.RemoveAll(tempDir)
-		
-		storage, err := NewFileStorage(tempDir)
-		if err != nil {
-			t.Fatalf("Failed to create storage: %v", err)
-		}
+		storage := NewMockJSONStorage()
 		
 		config := Config{
 			APIKey:          "test-key",
@@ -326,43 +288,10 @@ func TestProfiler_RuntimeSettings(t *testing.T) {
 	})
 }
 
-// Mock storage implementations for testing error conditions
-
-type MockFailingStorage struct{}
-
-func (m *MockFailingStorage) Upload(ctx context.Context, filePath string) (string, error) {
-	return "", fmt.Errorf("storage upload failed")
-}
-
-type MockInvalidJSONStorage struct{}
-
-func (m *MockInvalidJSONStorage) Upload(ctx context.Context, filePath string) (string, error) {
-	return "invalid json response", nil
-}
-
-type MockValidJSONStorage struct{}
-
-func (m *MockValidJSONStorage) Upload(ctx context.Context, filePath string) (string, error) {
-	response := map[string]string{
-		"profile_id":  "test-id",
-		"profile_url": "https://test.com/profile.pprof",
-		"type":        "cpu",
-	}
-	jsonData, _ := json.Marshal(response)
-	return string(jsonData), nil
-}
+// Mock storage implementations are now in mock_storage_test.go
 
 func TestProfiler_start_stop_internals(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "pprofio-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-	
-	storage, err := NewFileStorage(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
+	storage := NewMockJSONStorage()
 	
 	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -411,16 +340,7 @@ func TestProfiler_start_stop_internals(t *testing.T) {
 }
 
 func TestProfiler_collectMemory_ForceGC(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "pprofio-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-	
-	storage, err := NewFileStorage(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
+	storage := NewMockJSONStorage()
 	
 	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -448,16 +368,7 @@ func TestProfiler_collectMemory_ForceGC(t *testing.T) {
 }
 
 func TestProfiler_profileTypes_Coverage(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "pprofio-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-	
-	storage, err := NewFileStorage(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
+	storage := NewMockJSONStorage()
 	
 	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

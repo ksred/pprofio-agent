@@ -102,10 +102,12 @@ func TestDefaultConfig_Complete(t *testing.T) {
 
 func TestConfig_validate_EdgeCases(t *testing.T) {
 	t.Run("AllRuntimeSettingsZero", func(t *testing.T) {
+		storage := NewMockJSONStorage()
 		config := &Config{
 			APIKey:           "test-key",
 			IngestURL:        "https://api.pprofio.com",
 			ServiceName:      "test-service",
+			Storage:          storage,
 			SampleRate:       0,
 			ProfileDuration:  0,
 			MemProfileRate:   0,
@@ -142,10 +144,12 @@ func TestConfig_validate_EdgeCases(t *testing.T) {
 	})
 	
 	t.Run("NoProfileTypesEnabled", func(t *testing.T) {
+		storage := NewMockJSONStorage()
 		config := &Config{
 			APIKey:          "test-key",
 			IngestURL:       "https://api.pprofio.com",
 			ServiceName:     "test-service",
+			Storage:         storage,
 			SampleRate:      60 * time.Second,
 			ProfileDuration: 10 * time.Second,
 			// All profile types disabled by default
