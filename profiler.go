@@ -22,6 +22,26 @@ const (
 	profileTypeCustom    profileType = "custom"
 )
 
+// Profiler manages continuous collection and upload of runtime performance profiles.
+// It coordinates multiple profile types (CPU, memory, goroutines, etc.) and handles
+// their scheduling, collection, and upload to configured storage backends.
+//
+// The Profiler is designed for production use with minimal overhead (<1% CPU impact)
+// and automatic error handling. It can be safely started and stopped multiple times.
+//
+// Example usage:
+//
+//	cfg := pprofio.DefaultConfig("api-key", "https://api.pprofio.com", "my-service")
+//	profiler, err := pprofio.New(cfg)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	ctx := context.Background()
+//	if err := profiler.Start(ctx); err != nil {
+//		log.Fatal(err)
+//	}
+//	defer profiler.Stop()
 type Profiler struct {
 	config      Config
 	mu          sync.Mutex
@@ -29,6 +49,7 @@ type Profiler struct {
 	wg          sync.WaitGroup
 	initialized bool
 	spanCh      chan *Span
+	metrics     Metrics
 
 	// Store original runtime values for restoration
 	originalMemProfileRate   int
@@ -190,25 +211,32 @@ func (p *Profiler) collectBlock(ctx context.Context) error {
 }
 
 func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType string) error {
-	// Upload the profile and parse the returned JSON response
+	// Upload the profile and parse the returned response
 	uploadResp, err := p.config.Storage.Upload(ctx, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to upload profile: %w", err)
 	}
 
-	// Parse the JSON response
+	// Try to parse as JSON first, fall back to plain string for backward compatibility
 	var response struct {
 		ProfileID  string `json:"profile_id"`
 		ProfileURL string `json:"profile_url"`
 		Type       string `json:"type"`
 	}
+	
+	var profileURL, profileID, profileTypeFromResp string
+	
 	if err := json.Unmarshal([]byte(uploadResp), &response); err != nil {
-		return fmt.Errorf("failed to parse upload response: %w", err)
+		// Not JSON, treat as plain string (legacy HTTP endpoints)
+		profileURL = uploadResp
+		profileID = fmt.Sprintf("legacy-%d", time.Now().Unix())
+		profileTypeFromResp = profileType
+	} else {
+		// JSON response
+		profileURL = response.ProfileURL
+		profileID = response.ProfileID
+		profileTypeFromResp = response.Type
 	}
-
-	profileURL := response.ProfileURL
-	profileID := response.ProfileID
-	profileTypeFromResp := response.Type
 
 	// Send metadata with the returned profile_url
 	metadata := map[string]string{

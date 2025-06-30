@@ -17,18 +17,52 @@ import (
 	"time"
 )
 
+// Storage defines the interface for uploading profile data.
+// Implementations can send profiles to remote APIs, local storage, or other destinations.
+//
+// The Upload method should handle compression, retries, and error handling as appropriate
+// for the storage backend. It returns a response string that may contain metadata
+// about the uploaded profile (e.g., profile ID, URL).
 type Storage interface {
+	// Upload uploads a profile file to the storage backend.
+	// The filePath points to a temporary pprof file that should be read and uploaded.
+	// Returns a response string (often JSON) containing upload metadata.
 	Upload(ctx context.Context, filePath string) (string, error)
 }
 
+// HTTPStorage uploads profiles to a remote HTTP API with authentication and retry logic.
+// It automatically compresses profiles using gzip and includes authentication headers.
+//
+// HTTPStorage is the recommended storage for production use with the Pprofio service.
 type HTTPStorage struct {
-	URL     string
-	APIKey  string
-	Client  *http.Client
+	// URL is the endpoint for uploading profiles (e.g., "https://api.pprofio.com/upload").
+	URL string
+
+	// APIKey is the authentication token for the remote API.
+	APIKey string
+
+	// Client is the HTTP client used for requests. If nil, a default client is used.
+	Client *http.Client
+
+	// Retries is the number of retry attempts for failed uploads. Default: 3.
 	Retries int
-	Env     string
+
+	// Env specifies the environment for security validation.
+	// In non-"local" environments, HTTPS is required.
+	Env string
 }
 
+// NewHTTPStorage creates a new HTTP storage instance with default settings.
+// It configures automatic retries and appropriate timeouts for production use.
+//
+// Parameters:
+//   - url: The upload endpoint URL (must be HTTPS in production)
+//   - apiKey: Authentication token for the API
+//   - env: Environment identifier ("local", "production", etc.)
+//
+// Example:
+//
+//	storage := pprofio.NewHTTPStorage("https://api.pprofio.com/upload", "your-api-key", "production")
 func NewHTTPStorage(url, apiKey, env string) *HTTPStorage {
 	return &HTTPStorage{
 		URL:     url,
@@ -39,6 +73,11 @@ func NewHTTPStorage(url, apiKey, env string) *HTTPStorage {
 	}
 }
 
+// Upload compresses and uploads a profile file to the configured HTTP endpoint.
+// It includes automatic retry logic with exponential backoff for transient failures.
+//
+// The method validates HTTPS usage in production environments and handles
+// authentication, compression, and error responses appropriately.
 func (s *HTTPStorage) Upload(ctx context.Context, filePath string) (string, error) {
 	if s.URL == "" || s.APIKey == "" {
 		return "", errors.New("URL and APIKey are required")
@@ -110,6 +149,7 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 		req.Header.Set("Content-Type", "application/octet-stream")
 		req.Header.Set("Content-Encoding", "gzip")
 		req.Header.Set("Authorization", "Bearer "+s.APIKey)
+		req.Header.Set("User-Agent", GetBuildInfo().UserAgent())
 
 		// Send the request
 		resp, err := s.Client.Do(req)
@@ -147,10 +187,30 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 	return "", fmt.Errorf("upload failed after %d attempts: %w", s.Retries, lastErr)
 }
 
+// FileStorage saves profiles to local files in a specified directory.
+// This storage type is useful for development, testing, or when profiles
+// need to be processed by external tools.
+//
+// Files are saved with their original names and can be analyzed using
+// standard Go profiling tools like `go tool pprof`.
 type FileStorage struct {
+	// Directory is the path where profile files will be saved.
+	// The directory will be created if it doesn't exist.
 	Directory string
 }
 
+// NewFileStorage creates a new file storage instance for the specified directory.
+// It automatically creates the directory if it doesn't exist with appropriate permissions.
+//
+// Parameters:
+//   - directory: Path where profile files should be saved
+//
+// Example:
+//
+//	storage, err := pprofio.NewFileStorage("/var/log/profiles")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
 func NewFileStorage(directory string) (*FileStorage, error) {
 	if directory == "" {
 		return nil, errors.New("directory is required")
@@ -190,24 +250,71 @@ func (s *FileStorage) Upload(ctx context.Context, filePath string) (string, erro
 		return "", fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	return targetPath, nil
+	// Return JSON response matching the expected format
+	response := map[string]string{
+		"profile_id":  "file-" + fmt.Sprintf("%d", time.Now().Unix()),
+		"profile_url": targetPath,
+		"type":        s.detectProfileType(filePath),
+	}
+	
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal response: %w", err)
+	}
+	
+	return string(jsonResponse), nil
 }
 
-// StdoutStorage outputs profile data and metadata to stdout for testing purposes
+// detectProfileType determines the profile type from the filename for FileStorage
+func (s *FileStorage) detectProfileType(filePath string) string {
+	if strings.Contains(filePath, "cpu") {
+		return "cpu"
+	} else if strings.Contains(filePath, "memory") || strings.Contains(filePath, "heap") {
+		return "memory"
+	} else if strings.Contains(filePath, "goroutine") {
+		return "goroutine"
+	} else if strings.Contains(filePath, "mutex") {
+		return "mutex"
+	} else if strings.Contains(filePath, "block") {
+		return "block"
+	}
+	return "unknown"
+}
+
+// StdoutStorage outputs profile data and metadata to stdout for testing and debugging.
+// This storage type is primarily used for development, testing, and CI/CD pipelines
+// where profiles need to be captured in logs or processed by external tools.
+//
+// The output format includes profile metadata and guidance for analysis with
+// standard Go tooling.
 type StdoutStorage struct{}
 
-// NewStdoutStorage creates a new stdout storage instance
+// NewStdoutStorage creates a new stdout storage instance.
+// This storage type requires no configuration and is safe for concurrent use.
+//
+// Example:
+//
+//	cfg := pprofio.Config{
+//		ServiceName:    "my-service",
+//		OutputToStdout: true,
+//		Storage:        pprofio.NewStdoutStorage(),
+//	}
 func NewStdoutStorage() *StdoutStorage {
 	return &StdoutStorage{}
 }
 
-// Upload reads the profile file and outputs its contents to stdout in a structured format
+// Upload reads the profile file and outputs its contents to stdout in a structured format.
+// The output includes profile type detection, file metadata, and instructions for
+// further analysis using go tool pprof.
 func (s *StdoutStorage) Upload(ctx context.Context, filePath string) (string, error) {
 	// Read the profile file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read profile file: %w", err)
 	}
+
+	// Determine profile type from filename
+	profileType := s.detectProfileType(filePath)
 
 	// Output profile data header
 	fmt.Printf("PROFILE_DATA (size: %d bytes):\n", len(data))
@@ -220,7 +327,35 @@ func (s *StdoutStorage) Upload(ctx context.Context, filePath string) (string, er
 
 	fmt.Println() // Add separator line
 
-	return "stdout", nil
+	// Return JSON response matching the expected format
+	response := map[string]string{
+		"profile_id":  "stdout-" + fmt.Sprintf("%d", time.Now().Unix()),
+		"profile_url": "stdout://local",
+		"type":        profileType,
+	}
+	
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal response: %w", err)
+	}
+	
+	return string(jsonResponse), nil
+}
+
+// detectProfileType determines the profile type from the filename
+func (s *StdoutStorage) detectProfileType(filePath string) string {
+	if strings.Contains(filePath, "cpu") {
+		return "cpu"
+	} else if strings.Contains(filePath, "memory") || strings.Contains(filePath, "heap") {
+		return "memory"
+	} else if strings.Contains(filePath, "goroutine") {
+		return "goroutine"
+	} else if strings.Contains(filePath, "mutex") {
+		return "mutex"
+	} else if strings.Contains(filePath, "block") {
+		return "block"
+	}
+	return "unknown"
 }
 
 // displayPprofData uses go tool pprof to show readable profile information

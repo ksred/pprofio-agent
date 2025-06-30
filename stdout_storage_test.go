@@ -2,6 +2,7 @@ package pprofio
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -46,9 +47,27 @@ func TestStdoutStorage_Upload(t *testing.T) {
 	n, _ := r.Read(buf)
 	output := string(buf[:n])
 
-	// Verify result
-	if result != "stdout" {
-		t.Errorf("StdoutStorage.Upload() result = %q, want %q", result, "stdout")
+	// Verify result is JSON format
+	var uploadResp struct {
+		ProfileID  string `json:"profile_id"`
+		ProfileURL string `json:"profile_url"`
+		Type       string `json:"type"`
+	}
+	if err := json.Unmarshal([]byte(result), &uploadResp); err != nil {
+		t.Fatalf("StdoutStorage.Upload() should return JSON, got %q: %v", result, err)
+	}
+
+	// Verify JSON response fields
+	if uploadResp.ProfileURL != "stdout://local" {
+		t.Errorf("Expected profile_url 'stdout://local', got %q", uploadResp.ProfileURL)
+	}
+
+	if !strings.HasPrefix(uploadResp.ProfileID, "stdout-") {
+		t.Errorf("Expected profile_id to start with 'stdout-', got %q", uploadResp.ProfileID)
+	}
+
+	if uploadResp.Type != "cpu" {
+		t.Errorf("Expected type 'cpu', got %q", uploadResp.Type)
 	}
 
 	// Verify output contains structured profile information

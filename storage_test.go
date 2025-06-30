@@ -2,6 +2,7 @@ package pprofio
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -95,19 +96,39 @@ func TestFileStorage_Upload(t *testing.T) {
 	}
 
 	// Upload the file
-	path, err := storage.Upload(context.Background(), tmpFile.Name())
+	response, err := storage.Upload(context.Background(), tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Storage.Upload() error = %v", err)
 	}
 
+	// Parse the JSON response
+	var uploadResp struct {
+		ProfileID  string `json:"profile_id"`
+		ProfileURL string `json:"profile_url"`
+		Type       string `json:"type"`
+	}
+	if err := json.Unmarshal([]byte(response), &uploadResp); err != nil {
+		t.Fatalf("Failed to parse upload response: %v", err)
+	}
+
 	// Check the result
 	expectedPath := filepath.Join(tmpDir, filepath.Base(tmpFile.Name()))
-	if path != expectedPath {
-		t.Errorf("Storage.Upload() returned %q, want %q", path, expectedPath)
+	if uploadResp.ProfileURL != expectedPath {
+		t.Errorf("Storage.Upload() returned profile_url %q, want %q", uploadResp.ProfileURL, expectedPath)
+	}
+
+	// Verify the profile_id is set
+	if uploadResp.ProfileID == "" {
+		t.Error("Storage.Upload() should return a profile_id")
+	}
+
+	// Verify the type is detected
+	if uploadResp.Type != "unknown" {
+		t.Errorf("Storage.Upload() returned type %q, want %q", uploadResp.Type, "unknown")
 	}
 
 	// Check the file was copied
-	copiedContent, err := os.ReadFile(path)
+	copiedContent, err := os.ReadFile(uploadResp.ProfileURL)
 	if err != nil {
 		t.Fatalf("Failed to read copied file: %v", err)
 	}

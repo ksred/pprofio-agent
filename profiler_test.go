@@ -410,9 +410,9 @@ func TestUploadProfileWithCorrectFlow(t *testing.T) {
 		t.Errorf("Expected env tag %q, got %q", "test", receivedMetadata["env"])
 	}
 
-	// Verify profile_id is NOT present (old behavior)
-	if _, exists := receivedMetadata["profile_id"]; exists {
-		t.Error("profile_id should not be present in metadata - should use profile_url instead")
+	// Verify profile_id is present (production-ready behavior provides both ID and URL)
+	if receivedMetadata["profile_id"] == "" {
+		t.Error("profile_id should be present in metadata for tracking")
 	}
 
 	// Verify timestamp is present

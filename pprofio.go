@@ -11,9 +11,6 @@ import (
 	"time"
 )
 
-// Version is the current package version
-const Version = "0.1.0"
-
 // New creates a new profiler with the provided configuration.
 // It returns an error if the configuration is invalid.
 func New(config Config) (*Profiler, error) {
@@ -53,7 +50,32 @@ func New(config Config) (*Profiler, error) {
 }
 
 // Start begins collecting and uploading profiles based on the configuration.
-// It returns an error if the profiler is already running or if starting fails.
+// It configures Go runtime settings for profiling and starts background goroutines
+// for each enabled profile type.
+//
+// The profiler runs continuously until Stop() is called or the context is canceled.
+// It's safe to call Start() multiple times - subsequent calls will return an error
+// if the profiler is already running.
+//
+// Start() modifies global Go runtime settings (MemProfileRate, MutexProfileFraction,
+// BlockProfileRate) which are restored when Stop() is called.
+//
+// Parameters:
+//   - ctx: Context for cancellation. When canceled, all profiling stops.
+//
+// Returns an error if:
+//   - The profiler is already running
+//   - The configuration is invalid
+//   - Storage initialization fails
+//
+// Example:
+//
+//	ctx, cancel := context.WithCancel(context.Background())
+//	defer cancel()
+//
+//	if err := profiler.Start(ctx); err != nil {
+//		log.Fatal("Failed to start profiler:", err)
+//	}
 func (p *Profiler) Start(ctx context.Context) error {
 	return p.start(ctx)
 }
@@ -122,7 +144,25 @@ func (p *Profiler) start(ctx context.Context) error {
 	return nil
 }
 
-// Stop ends profile collection and waits for any pending uploads to complete.
+// Stop gracefully shuts down the profiler and waits for pending operations to complete.
+// It stops all background goroutines, restores original Go runtime settings, and
+// ensures any in-flight profile uploads finish before returning.
+//
+// Stop() is safe to call multiple times and will not block if the profiler is
+// not running. It's recommended to call Stop() in a defer statement or signal handler
+// to ensure clean shutdown.
+//
+// The method restores Go runtime settings (MemProfileRate, MutexProfileFraction,
+// BlockProfileRate) to their original values from before Start() was called.
+//
+// Example:
+//
+//	profiler, _ := pprofio.New(config)
+//	defer profiler.Stop() // Ensures cleanup on function exit
+//
+//	profiler.Start(ctx)
+//	// ... application code ...
+//	// Stop() called automatically via defer
 func (p *Profiler) Stop() {
 	p.stop()
 }
