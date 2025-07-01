@@ -220,7 +220,32 @@ func (s *StdoutStorage) Upload(ctx context.Context, filePath string) (string, er
 
 	fmt.Println() // Add separator line
 
-	return "stdout", nil
+	// Determine profile type from filename for JSON response
+	profileType := "unknown"
+	if strings.Contains(filePath, "cpu") {
+		profileType = "cpu"
+	} else if strings.Contains(filePath, "memory") || strings.Contains(filePath, "heap") {
+		profileType = "memory"
+	} else if strings.Contains(filePath, "goroutine") {
+		profileType = "goroutine"
+	} else if strings.Contains(filePath, "mutex") {
+		profileType = "mutex"
+	} else if strings.Contains(filePath, "block") {
+		profileType = "block"
+	}
+	
+	// Return JSON response like other storage implementations
+	response := map[string]string{
+		"profile_id":  "stdout-profile",
+		"profile_url": "stdout",
+		"type":        profileType,
+	}
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal stdout response: %w", err)
+	}
+	
+	return string(jsonData), nil
 }
 
 // displayPprofData uses go tool pprof to show readable profile information
