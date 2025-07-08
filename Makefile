@@ -126,7 +126,12 @@ fix: fmt imports lint-fix ## Auto-fix formatting and linting issues
 
 # Release
 .PHONY: release
-release: ## Create a release (requires VERSION environment variable)
+release: ## Interactive release with version suggestions
+	@echo "Starting interactive release process..."
+	./scripts/release-interactive.sh
+
+.PHONY: release-version
+release-version: ## Create a release with specific version (requires VERSION)
 	@if [ -z "$(VERSION)" ]; then echo "VERSION environment variable is required"; exit 1; fi
 	@echo "Creating release $(VERSION)..."
 	./scripts/release.sh $(VERSION)
@@ -141,6 +146,19 @@ release-dry-run: ## Dry run of release process
 	@echo "Checking if working directory is clean..."
 	@git status --porcelain | grep -q . && echo "Working directory is not clean" && exit 1 || echo "Working directory is clean"
 	@echo "Dry run completed successfully"
+
+.PHONY: changelog
+changelog: ## Generate changelog suggestions from recent commits
+	@echo "Generating changelog suggestions..."
+	./scripts/changelog-helper.sh
+
+.PHONY: release-info
+release-info: ## Show current version and recent tags
+	@echo "Current version in code: $$(grep 'const Version' pprofio.go | cut -d'"' -f2)"
+	@echo "Latest git tag: $$(git describe --tags --abbrev=0 2>/dev/null || echo 'none')"
+	@echo ""
+	@echo "Recent tags:"
+	@git tag -l --sort=-version:refname | head -5
 
 # CI/CD simulation
 .PHONY: ci
