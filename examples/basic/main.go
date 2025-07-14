@@ -15,7 +15,7 @@ func main() {
 	// Configure the profiler
 	cfg := pprofio.Config{
 		APIKey:          "test-api-key",                 // Not used with file storage but required
-		IngestURL:       "http://localhost:8080/api/v1", // Not used with file storage but required
+		IngestURL:       "http://localhost:8085/api/v1", // Not used with file storage but required
 		SampleRate:      10 * time.Second,               // More frequent for demonstration
 		ProfileDuration: 5 * time.Second,
 		ServiceName:     "example-service",

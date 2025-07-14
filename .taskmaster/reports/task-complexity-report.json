@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "generatedAt": "2025-06-13T12:16:54.158Z",
+    "tasksAnalyzed": 2,
+    "totalTasks": 15,
+    "analysisCount": 2,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 11,
+      "taskTitle": "Implement Web Middleware Integration",
+      "complexityScore": 8,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Design and implement a framework-agnostic middleware for collecting HTTP metrics, ensuring compatibility across different web frameworks.",
+      "reasoning": "This task involves developing a middleware that can integrate with various frameworks, which requires handling different protocols and technologies, thus increasing its complexity."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "Implement Framework-Specific Adapters",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Create adapters for Gin, Gorilla Mux, Chi, and Echo frameworks to ensure seamless integration with the developed middleware.",
+      "reasoning": "Implementing adapters for multiple frameworks requires understanding each framework's specifics, but the core logic remains similar across adapters, reducing overall complexity compared to developing framework-agnostic middleware."
+    }
+  ]
+}
