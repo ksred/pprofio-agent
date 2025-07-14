@@ -2,6 +2,7 @@ package pprofio
 
 import (
 	"errors"
+	"os"
 	"time"
 )
 
@@ -32,6 +33,7 @@ type Config struct {
 	EnableCustom     bool
 	OutputToStdout   bool
 	Env              string
+	Hostname         string
 }
 
 func (c *Config) validate() error {
@@ -76,6 +78,17 @@ func (c *Config) validate() error {
 	if !c.EnableCPU && !c.EnableMemory && !c.EnableGoroutine && !c.EnableMutex && !c.EnableBlock && !c.EnableCustom {
 		c.EnableCPU = true
 		c.EnableMemory = true
+	}
+
+	// Auto-populate hostname if not provided
+	if c.Hostname == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			// If we can't get the hostname, use "unknown"
+			c.Hostname = "unknown"
+		} else {
+			c.Hostname = hostname
+		}
 	}
 
 	return nil

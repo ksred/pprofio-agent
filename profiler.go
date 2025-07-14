@@ -217,6 +217,7 @@ func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType stri
 		"service":     p.config.ServiceName,
 		"type":        profileTypeFromResp,
 		"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+		"hostname":    p.config.Hostname,
 	}
 
 	// Add user-provided tags

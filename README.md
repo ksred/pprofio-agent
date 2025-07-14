@@ -82,6 +82,7 @@ type Config struct {
     EnableCPU       bool              // Enable CPU profiling (default: true)
     EnableMemory    bool              // Enable memory profiling (default: true)
     ProfileDuration time.Duration     // Profile collection duration (default: 10s)
+    Hostname        string            // Hostname of the machine (auto-populated if empty)
 }
 ```
 
