@@ -138,6 +138,7 @@ func (p *Profiler) collectMemory(ctx context.Context) error {
 	}
 
 	f.Close()
+
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeMemory))
 }
 
@@ -154,6 +155,7 @@ func (p *Profiler) collectGoroutine(ctx context.Context) error {
 	}
 
 	f.Close()
+
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeGoroutine))
 }
 
@@ -170,6 +172,7 @@ func (p *Profiler) collectMutex(ctx context.Context) error {
 	}
 
 	f.Close()
+
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeMutex))
 }
 
@@ -186,6 +189,7 @@ func (p *Profiler) collectBlock(ctx context.Context) error {
 	}
 
 	f.Close()
+
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeBlock))
 }
 
@@ -202,6 +206,7 @@ func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType stri
 		ProfileURL string `json:"profile_url"`
 		Type       string `json:"type"`
 	}
+
 	if err := json.Unmarshal([]byte(uploadResp), &response); err != nil {
 		return fmt.Errorf("failed to parse upload response: %w", err)
 	}

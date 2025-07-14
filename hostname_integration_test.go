@@ -13,7 +13,7 @@ import (
 func TestHostnameInProfileMetadata(t *testing.T) {
 	// Create a channel to capture metadata
 	metadataCh := make(chan map[string]string, 1)
-	
+
 	// Create a test server to receive metadata
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/metadata" {
@@ -24,20 +24,20 @@ func TestHostnameInProfileMetadata(t *testing.T) {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			
+
 			// Send metadata to channel for verification
 			select {
 			case metadataCh <- metadata:
 			default:
 			}
-			
+
 			w.WriteHeader(http.StatusOK)
 		} else if r.URL.Path == "/upload" {
 			// Mock profile upload response
 			response := map[string]string{
 				"profile_id":  "test-profile-123",
 				"profile_url": "https://storage.pprofio.com/test-profile-123.pprof",
-				"type":       "cpu",
+				"type":        "cpu",
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
@@ -98,7 +98,7 @@ func TestHostnameInProfileMetadata(t *testing.T) {
 			// Start profiler
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			
+
 			if err := p.Start(ctx); err != nil {
 				t.Fatalf("Start() error = %v", err)
 			}

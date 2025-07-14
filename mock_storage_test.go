@@ -3,6 +3,7 @@ package pprofio
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -27,7 +28,7 @@ func (m *MockJSONStorage) Upload(ctx context.Context, filePath string) (string, 
 	if m.ShouldFail {
 		return "", fmt.Errorf("mock upload failed")
 	}
-	
+
 	// Determine profile type from filename
 	profileType := "unknown"
 	if contains(filePath, "cpu") {
@@ -41,32 +42,32 @@ func (m *MockJSONStorage) Upload(ctx context.Context, filePath string) (string, 
 	} else if contains(filePath, "block") {
 		profileType = "block"
 	}
-	
+
 	// Create response with correct profile type
 	response := map[string]string{
 		"profile_id":  "mock-profile-id",
 		"profile_url": "https://mock.pprofio.com/profiles/mock-profile-id.pprof",
 		"type":        profileType,
 	}
-	
+
 	// Override with custom data if provided
 	for k, v := range m.ResponseData {
 		response[k] = v
 	}
 	response["type"] = profileType // Always use detected type
-	
+
 	jsonData, err := json.Marshal(response)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal mock response: %w", err)
 	}
-	
+
 	return string(jsonData), nil
 }
 
 // Helper function since strings.Contains isn't available in all contexts
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr || 
-		   (len(s) > len(substr) && findSubstring(s, substr))
+	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr ||
+		(len(s) > len(substr) && findSubstring(s, substr))
 }
 
 func findSubstring(s, substr string) bool {
@@ -90,7 +91,7 @@ func NewMockFailingJSONStorage(errorMsg string) *MockFailingJSONStorage {
 }
 
 func (m *MockFailingJSONStorage) Upload(ctx context.Context, filePath string) (string, error) {
-	return "", fmt.Errorf(m.ErrorMessage)
+	return "", errors.New(m.ErrorMessage)
 }
 
 // MockInvalidJSONStorage returns invalid JSON for testing JSON parsing errors

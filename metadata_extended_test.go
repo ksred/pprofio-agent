@@ -50,11 +50,11 @@ func TestProfiler_sendMetadata_Success(t *testing.T) {
 func TestNewMetadataClient_Coverage(t *testing.T) {
 	// Test creating a metadata client
 	client := newMetadataClient("https://api.pprofio.com", "test-key")
-	
+
 	if client == nil {
 		t.Error("newMetadataClient() should return a valid client")
 	}
-	
+
 	if client.client == nil {
 		t.Error("newMetadataClient() should set up HTTP client")
 	}
@@ -69,17 +69,16 @@ func TestMetadata_sendMetadata_InternalFunction(t *testing.T) {
 
 	// Create metadata client
 	client := newMetadataClient(server.URL, "test-key")
-	
+
 	// Test the internal sendMetadata function
 	metadata := map[string]string{
 		"service": "test-service",
 		"type":    "cpu",
 	}
-	
+
 	ctx := context.Background()
 	err := client.sendMetadata(ctx, metadata)
 	if err != nil {
 		t.Errorf("sendMetadata() error = %v", err)
 	}
 }
-

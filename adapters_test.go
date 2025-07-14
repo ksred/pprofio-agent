@@ -10,11 +10,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	TestSampleRate     = 1.0
+	TestServiceName    = "test-service"
+	TestVersion        = "1.0.0"
+	TestEnvironment    = "test"
+	TestRegion         = "us-west-1"
+	TestTeam           = "backend"
+	TestComponent      = "auth"
+	TestUserPath       = "/users/123"
+	TestUserPattern    = "/users/:id"
+	TestResponse       = "test response"
+	TestPanicPath      = "/panic"
+	TestPanicMessage   = "test panic"
+	TestRequestCount   = 1000
+	MaxAverageOverhead = 100 * time.Microsecond
+)
+
 // Test framework-agnostic middleware interface
 func TestMiddlewareAdapter_Interface(t *testing.T) {
 	config := MiddlewareConfig{
 		Enabled:          true,
-		SampleRate:       1.0,
+		SampleRate:       TestSampleRate,
 		CollectUserAgent: true,
 	}
 
@@ -30,28 +47,28 @@ func TestMiddlewareAdapter_Interface(t *testing.T) {
 	require.NotNil(t, httpAdapter)
 
 	// Test that the adapter can wrap handlers
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test response"))
+		w.Write([]byte(TestResponse))
 	})
 
 	wrappedHandler := httpAdapter(testHandler)
 	require.NotNil(t, wrappedHandler)
 
 	// Verify the wrapped handler works
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	w := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "test response", w.Body.String())
+	assert.Equal(t, TestResponse, w.Body.String())
 }
 
 // Test middleware context and request ID propagation
 func TestMiddlewareAdapter_ContextPropagation(t *testing.T) {
 	config := MiddlewareConfig{
 		Enabled:    true,
-		SampleRate: 1.0,
+		SampleRate: TestSampleRate,
 	}
 
 	collector := NewMetricsCollector(config)
@@ -76,7 +93,7 @@ func TestMiddlewareAdapter_ContextPropagation(t *testing.T) {
 
 	wrappedHandler := httpAdapter(testHandler)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	w := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
@@ -92,7 +109,7 @@ func TestMiddlewareAdapter_ContextPropagation(t *testing.T) {
 func TestMiddlewareAdapter_CustomTags(t *testing.T) {
 	config := MiddlewareConfig{
 		Enabled:    true,
-		SampleRate: 1.0,
+		SampleRate: TestSampleRate,
 	}
 
 	collector := NewMetricsCollector(config)
@@ -106,36 +123,36 @@ func TestMiddlewareAdapter_CustomTags(t *testing.T) {
 
 	// Add custom tags including common fields that should be moved to top-level
 	adapter.WithTags(map[string]string{
-		"service":     "test-service", // Should move to top-level
-		"version":     "1.0.0",        // Should move to top-level
-		"environment": "test",         // Should move to top-level
-		"region":      "us-west-1",    // Should move to top-level
-		"team":        "backend",      // Should remain in tags
-		"component":   "auth",         // Should remain in tags
+		"service":     TestServiceName, // Should move to top-level
+		"version":     TestVersion,     // Should move to top-level
+		"environment": TestEnvironment, // Should move to top-level
+		"region":      TestRegion,      // Should move to top-level
+		"team":        TestTeam,        // Should remain in tags
+		"component":   TestComponent,   // Should remain in tags
 	})
 
 	httpAdapter := adapter.ForHTTP()
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	wrappedHandler := httpAdapter(testHandler)
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	w := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
 	// Verify common fields were moved to top-level
 	require.NotNil(t, capturedMetrics)
-	assert.Equal(t, "test-service", capturedMetrics.Service)
-	assert.Equal(t, "1.0.0", capturedMetrics.Version)
-	assert.Equal(t, "test", capturedMetrics.Environment)
-	assert.Equal(t, "us-west-1", capturedMetrics.Region)
+	assert.Equal(t, TestServiceName, capturedMetrics.Service)
+	assert.Equal(t, TestVersion, capturedMetrics.Version)
+	assert.Equal(t, TestEnvironment, capturedMetrics.Environment)
+	assert.Equal(t, TestRegion, capturedMetrics.Region)
 
 	// Verify remaining tags stayed in tags field
-	assert.Equal(t, "backend", capturedMetrics.Tags["team"])
-	assert.Equal(t, "auth", capturedMetrics.Tags["component"])
+	assert.Equal(t, TestTeam, capturedMetrics.Tags["team"])
+	assert.Equal(t, TestComponent, capturedMetrics.Tags["component"])
 
 	// Verify common fields are NOT in tags field
 	assert.NotContains(t, capturedMetrics.Tags, "service")
@@ -152,7 +169,7 @@ func TestMiddlewareAdapter_CustomTags(t *testing.T) {
 func TestMiddlewareAdapter_RoutePatterns(t *testing.T) {
 	config := MiddlewareConfig{
 		Enabled:    true,
-		SampleRate: 1.0,
+		SampleRate: TestSampleRate,
 	}
 
 	collector := NewMetricsCollector(config)
@@ -168,34 +185,34 @@ func TestMiddlewareAdapter_RoutePatterns(t *testing.T) {
 	adapter.WithRouteExtractor(func(r *http.Request) string {
 		// Simple pattern matching for test
 		path := r.URL.Path
-		if path == "/users/123" {
-			return "/users/:id"
+		if path == TestUserPath {
+			return TestUserPattern
 		}
 		return path
 	})
 
 	httpAdapter := adapter.ForHTTP()
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	wrappedHandler := httpAdapter(testHandler)
 
-	req := httptest.NewRequest("GET", "/users/123", nil)
+	req := httptest.NewRequest("GET", TestUserPath, http.NoBody)
 	w := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
 	// Verify route pattern was extracted
 	require.NotNil(t, capturedMetrics)
-	assert.Equal(t, "/users/:id", capturedMetrics.Path)
+	assert.Equal(t, TestUserPattern, capturedMetrics.Path)
 }
 
 // Test adapter error handling
 func TestMiddlewareAdapter_ErrorHandling(t *testing.T) {
 	config := MiddlewareConfig{
 		Enabled:    true,
-		SampleRate: 1.0,
+		SampleRate: TestSampleRate,
 	}
 
 	collector := NewMetricsCollector(config)
@@ -204,15 +221,15 @@ func TestMiddlewareAdapter_ErrorHandling(t *testing.T) {
 	// Test that adapter handles panics gracefully
 	httpAdapter := adapter.ForHTTP()
 
-	panicHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		panic("test panic")
+	panicHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		panic(TestPanicMessage)
 	})
 
 	wrappedHandler := httpAdapter(panicHandler)
 
 	// This should not panic - the middleware should recover
 	assert.NotPanics(t, func() {
-		req := httptest.NewRequest("GET", "/panic", nil)
+		req := httptest.NewRequest("GET", TestPanicPath, http.NoBody)
 		w := httptest.NewRecorder()
 		wrappedHandler.ServeHTTP(w, req)
 	})
@@ -222,14 +239,14 @@ func TestMiddlewareAdapter_ErrorHandling(t *testing.T) {
 func TestMiddlewareAdapter_Performance(t *testing.T) {
 	config := MiddlewareConfig{
 		Enabled:    true,
-		SampleRate: 1.0,
+		SampleRate: TestSampleRate,
 	}
 
 	collector := NewMetricsCollector(config)
 	adapter := NewMiddlewareAdapter(collector)
 	httpAdapter := adapter.ForHTTP()
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -237,10 +254,10 @@ func TestMiddlewareAdapter_Performance(t *testing.T) {
 
 	// Benchmark many requests
 	start := time.Now()
-	numRequests := 1000
+	numRequests := TestRequestCount
 
 	for i := 0; i < numRequests; i++ {
-		req := httptest.NewRequest("GET", "/test", nil)
+		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		w := httptest.NewRecorder()
 		wrappedHandler.ServeHTTP(w, req)
 	}
@@ -249,7 +266,7 @@ func TestMiddlewareAdapter_Performance(t *testing.T) {
 	averagePerRequest := duration / time.Duration(numRequests)
 
 	// Should be very fast - less than 100μs per request on average
-	assert.Less(t, averagePerRequest, 100*time.Microsecond,
+	assert.Less(t, averagePerRequest, MaxAverageOverhead,
 		"Middleware should add minimal overhead")
 
 	t.Logf("Average overhead per request: %v", averagePerRequest)

@@ -27,9 +27,11 @@ func (c *MiddlewareConfig) Validate() error {
 	if c.SampleRate < 0.0 || c.SampleRate > 1.0 {
 		return fmt.Errorf("sample rate must be between 0.0 and 1.0, got %f", c.SampleRate)
 	}
+
 	if c.MaxPayloadSize < 0 {
 		return fmt.Errorf("max payload size must be non-negative, got %d", c.MaxPayloadSize)
 	}
+
 	return nil
 }
 
@@ -89,11 +91,14 @@ func (mc *MetricsCollector) shouldSample() bool {
 	if mc.config.SampleRate >= 1.0 {
 		return true
 	}
+
 	if mc.config.SampleRate <= 0.0 {
 		return false
 	}
+
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
+
 	return mc.rng.Float64() < mc.config.SampleRate
 }
 
@@ -104,6 +109,7 @@ func (mc *MetricsCollector) isExcludedPath(path string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -117,7 +123,9 @@ func (mc *MetricsCollector) hashIP(ip string) string {
 	if !mc.config.HashIPs {
 		return ip
 	}
+
 	hash := md5.Sum([]byte(ip))
+
 	return fmt.Sprintf("%x", hash)
 }
 
@@ -141,6 +149,7 @@ func (mc *MetricsCollector) extractClientIP(r *http.Request) string {
 	if idx := strings.LastIndex(ip, ":"); idx != -1 {
 		ip = ip[:idx]
 	}
+
 	return ip
 }
 
@@ -151,6 +160,7 @@ func (mc *MetricsCollector) collectHeaders(r *http.Request) map[string]string {
 	}
 
 	headers := make(map[string]string)
+
 	for _, headerName := range mc.config.IncludeHeaders {
 		if value := r.Header.Get(headerName); value != "" {
 			headers[headerName] = value
@@ -160,6 +170,7 @@ func (mc *MetricsCollector) collectHeaders(r *http.Request) map[string]string {
 	if len(headers) == 0 {
 		return nil
 	}
+
 	return headers
 }
 
@@ -188,6 +199,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 func (rw *responseWriter) Write(b []byte) (int, error) {
 	n, err := rw.ResponseWriter.Write(b)
 	rw.responseSize += int64(n)
+
 	return n, err
 }
 

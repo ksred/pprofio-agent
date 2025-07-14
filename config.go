@@ -12,6 +12,13 @@ const (
 	DefaultMemProfileRate   = 4096
 	DefaultMutexFraction    = 5
 	DefaultBlockProfileRate = 100
+	UnknownHostname         = "unknown"
+	RequiredFieldPrefix     = " is required"
+	APIKeyRequired          = "APIKey" + RequiredFieldPrefix
+	IngestURLRequired       = "IngestURL" + RequiredFieldPrefix
+	StorageRequired         = "Storage" + RequiredFieldPrefix
+	ServiceNameRequired     = "ServiceName" + RequiredFieldPrefix
+	UploadPath              = "/upload"
 )
 
 type Config struct {
@@ -37,24 +44,40 @@ type Config struct {
 }
 
 func (c *Config) validate() error {
+	if err := c.validateRequiredFields(); err != nil {
+		return err
+	}
+
+	c.setDefaults()
+	c.ensureAtLeastOneProfileEnabled()
+	c.setHostnameIfEmpty()
+
+	return nil
+}
+
+func (c *Config) validateRequiredFields() error {
 	if !c.OutputToStdout {
 		if c.APIKey == "" {
-			return errors.New("APIKey is required")
+			return errors.New(APIKeyRequired)
 		}
 
 		if c.IngestURL == "" {
-			return errors.New("IngestURL is required")
+			return errors.New(IngestURLRequired)
+		}
+
+		if c.Storage == nil {
+			return errors.New(StorageRequired)
 		}
 	}
 
-	if !c.OutputToStdout && c.Storage == nil {
-		return errors.New("Storage is required")
-	}
-
 	if c.ServiceName == "" {
-		return errors.New("ServiceName is required")
+		return errors.New(ServiceNameRequired)
 	}
 
+	return nil
+}
+
+func (c *Config) setDefaults() {
 	if c.SampleRate <= 0 {
 		c.SampleRate = DefaultSampleRate
 	}
@@ -74,24 +97,25 @@ func (c *Config) validate() error {
 	if c.BlockProfileRate <= 0 {
 		c.BlockProfileRate = DefaultBlockProfileRate
 	}
+}
 
+func (c *Config) ensureAtLeastOneProfileEnabled() {
 	if !c.EnableCPU && !c.EnableMemory && !c.EnableGoroutine && !c.EnableMutex && !c.EnableBlock && !c.EnableCustom {
 		c.EnableCPU = true
 		c.EnableMemory = true
 	}
+}
 
-	// Auto-populate hostname if not provided
+func (c *Config) setHostnameIfEmpty() {
 	if c.Hostname == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
 			// If we can't get the hostname, use "unknown"
-			c.Hostname = "unknown"
+			c.Hostname = UnknownHostname
 		} else {
 			c.Hostname = hostname
 		}
 	}
-
-	return nil
 }
 
 func DefaultConfig(apiKey, ingestURL, serviceName string) Config {
@@ -100,7 +124,7 @@ func DefaultConfig(apiKey, ingestURL, serviceName string) Config {
 		IngestURL:        ingestURL,
 		SampleRate:       DefaultSampleRate,
 		ProfileDuration:  DefaultProfileDuration,
-		Storage:          &HTTPStorage{URL: ingestURL + "/upload", APIKey: apiKey},
+		Storage:          &HTTPStorage{URL: ingestURL + UploadPath, APIKey: apiKey},
 		ServiceName:      serviceName,
 		Tags:             make(map[string]string),
 		MemProfileRate:   DefaultMemProfileRate,
@@ -123,7 +147,7 @@ func ComprehensiveConfig(apiKey, ingestURL, serviceName string) Config {
 		IngestURL:        ingestURL,
 		SampleRate:       DefaultSampleRate,
 		ProfileDuration:  DefaultProfileDuration,
-		Storage:          &HTTPStorage{URL: ingestURL + "/upload", APIKey: apiKey},
+		Storage:          &HTTPStorage{URL: ingestURL + UploadPath, APIKey: apiKey},
 		ServiceName:      serviceName,
 		Tags:             make(map[string]string),
 		MemProfileRate:   DefaultMemProfileRate,

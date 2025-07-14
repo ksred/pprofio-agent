@@ -64,7 +64,7 @@ func main() {
 	fmt.Println("\nProfiler started with auto-populated hostname.")
 	fmt.Println("The hostname will be included in all profile metadata.")
 	fmt.Println("Check the profiles directory to see the uploaded profiles.")
-	
+
 	// You could also start p2 with custom hostname
 	_ = p2 // p2 is available if you want to use custom hostname
 

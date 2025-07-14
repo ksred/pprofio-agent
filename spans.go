@@ -72,7 +72,6 @@ func (p *Profiler) processCustomSpans(ctx context.Context) {
 func (p *Profiler) processSpans(ctx context.Context, spans map[string][]*Span) error {
 	// This would convert spans to a pprof-compatible format
 	// and upload them as a custom profile
-
 	// Placeholder implementation
 	return nil
 }

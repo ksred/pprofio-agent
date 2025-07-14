@@ -22,15 +22,19 @@ func New(config Config) (*Profiler, error) {
 	if config.SampleRate == 0 {
 		config.SampleRate = DefaultSampleRate
 	}
+
 	if config.ProfileDuration == 0 {
 		config.ProfileDuration = DefaultProfileDuration
 	}
+
 	if config.MemProfileRate == 0 {
 		config.MemProfileRate = DefaultMemProfileRate
 	}
+
 	if config.MutexFraction == 0 {
 		config.MutexFraction = DefaultMutexFraction
 	}
+
 	if config.BlockProfileRate == 0 {
 		config.BlockProfileRate = DefaultBlockProfileRate
 	}
@@ -93,11 +97,12 @@ func (p *Profiler) start(ctx context.Context) error {
 
 	// Start collection goroutines
 	profileTypesStarted := 0
-	
+
 	if p.config.EnableCPU {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeCPU)
 		fmt.Fprintf(os.Stderr, "CPU profiling started\n")
+
 		profileTypesStarted++
 	}
 
@@ -105,6 +110,7 @@ func (p *Profiler) start(ctx context.Context) error {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeMemory)
 		fmt.Fprintf(os.Stderr, "Memory profiling started\n")
+
 		profileTypesStarted++
 	}
 
@@ -112,6 +118,7 @@ func (p *Profiler) start(ctx context.Context) error {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeGoroutine)
 		fmt.Fprintf(os.Stderr, "Goroutine profiling started\n")
+
 		profileTypesStarted++
 	}
 
@@ -119,6 +126,7 @@ func (p *Profiler) start(ctx context.Context) error {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeMutex)
 		fmt.Fprintf(os.Stderr, "Mutex profiling started\n")
+
 		profileTypesStarted++
 	}
 
@@ -126,6 +134,7 @@ func (p *Profiler) start(ctx context.Context) error {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeBlock)
 		fmt.Fprintf(os.Stderr, "Block profiling started\n")
+
 		profileTypesStarted++
 	}
 
@@ -133,12 +142,14 @@ func (p *Profiler) start(ctx context.Context) error {
 		p.wg.Add(1)
 		go p.processCustomSpans(ctx)
 		fmt.Fprintf(os.Stderr, "Custom profiling started\n")
+
 		profileTypesStarted++
 	}
-	
+
 	fmt.Fprintf(os.Stderr, "Total profile types started: %d\n", profileTypesStarted)
 
 	p.initialized = true
+
 	return nil
 }
 

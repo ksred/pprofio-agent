@@ -13,12 +13,26 @@ import (
 	"time"
 )
 
+const (
+	ComprehensiveTestAPIKey          = "test-key"
+	ComprehensiveTestIngestURL       = "https://api.pprofio.com"
+	ComprehensiveTestServiceName     = "test-service"
+	ComprehensiveTestSampleRate      = 100 * time.Millisecond
+	ComprehensiveTestProfileDuration = 50 * time.Millisecond
+	ComprehensiveTestTimeout         = 2 * time.Second
+	ComprehensiveTestIterations      = 100
+	ComprehensiveTestMicroDelay      = time.Microsecond
+	ComprehensiveTestWaitTime        = 500 * time.Millisecond
+	ComprehensiveMinExpectedProfiles = 3
+	ComprehensiveProfileTypeCount    = 6
+)
+
 // TestComprehensiveProfileCollection tests that all profile types are properly collected and transmitted
 func TestComprehensiveProfileCollection(t *testing.T) {
 	// Create comprehensive configuration with stdout storage to avoid network issues
-	config := ComprehensiveConfig("test-key", "https://api.pprofio.com", "test-service")
-	config.SampleRate = 100 * time.Millisecond
-	config.ProfileDuration = 50 * time.Millisecond
+	config := ComprehensiveConfig(ComprehensiveTestAPIKey, ComprehensiveTestIngestURL, ComprehensiveTestServiceName)
+	config.SampleRate = ComprehensiveTestSampleRate
+	config.ProfileDuration = ComprehensiveTestProfileDuration
 	config.OutputToStdout = true // Use stdout storage to avoid HTTPS validation
 
 	// Create and start the profiler
@@ -32,7 +46,7 @@ func TestComprehensiveProfileCollection(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stderr = w
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), ComprehensiveTestTimeout)
 	defer cancel()
 
 	if err := p.Start(ctx); err != nil {
@@ -42,11 +56,11 @@ func TestComprehensiveProfileCollection(t *testing.T) {
 	// Create some workload to ensure mutex and block profiles have data
 	var testMutex sync.Mutex
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < ComprehensiveTestIterations; i++ {
 			testMutex.Lock()
-			time.Sleep(time.Microsecond)
+			time.Sleep(ComprehensiveTestMicroDelay)
 			testMutex.Unlock()
-			time.Sleep(time.Microsecond)
+			time.Sleep(ComprehensiveTestMicroDelay)
 		}
 	}()
 
@@ -62,7 +76,7 @@ func TestComprehensiveProfileCollection(t *testing.T) {
 	}()
 
 	// Let the profiler run and collect samples
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(ComprehensiveTestWaitTime)
 
 	// Stop the profiler
 	p.Stop()
@@ -213,7 +227,7 @@ func TestFileStorageJSONResponse(t *testing.T) {
 
 	// Create a test profile file
 	testFile := filepath.Join(tempDir, "cpu.pprof")
-	if err := os.WriteFile(testFile, []byte("test profile data"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test profile data"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 

@@ -35,7 +35,7 @@ func memoryIntensiveWork() {
 		// Fill with random data to ensure allocation
 		rand.Read(data[i])
 	}
-	
+
 	// Do some work with the data to prevent optimization
 	for i := 0; i < len(data); i++ {
 		for j := 0; j < 100; j++ {
@@ -51,20 +51,20 @@ func mutexContentionWork(workerID int) {
 		sharedMutex.Lock()
 		sharedCounter++
 		sharedMutex.Unlock()
-		
+
 		// Contend for shared data with read/write pattern
 		key := fmt.Sprintf("worker-%d", workerID)
-		
+
 		// Write operation
 		dataMutex.Lock()
 		sharedData[key] = i + 1
 		dataMutex.Unlock()
-		
+
 		// Read operation
 		dataMutex.RLock()
 		_ = sharedData[key]
 		dataMutex.RUnlock()
-		
+
 		// Small delay to simulate real work
 		time.Sleep(time.Microsecond)
 	}
@@ -75,7 +75,7 @@ func blockingWork(workerID int) {
 	// Channel operations that will block
 	ch := make(chan int, 1)
 	done := make(chan bool)
-	
+
 	// Producer goroutine
 	go func() {
 		for i := 0; i < 100; i++ {
@@ -84,7 +84,7 @@ func blockingWork(workerID int) {
 		}
 		close(ch)
 	}()
-	
+
 	// Consumer goroutine with blocking receives
 	go func() {
 		for range ch {
@@ -93,10 +93,10 @@ func blockingWork(workerID int) {
 		}
 		done <- true
 	}()
-	
+
 	// Wait for completion
 	<-done
-	
+
 	// Additional blocking on timer
 	timer := time.NewTimer(100 * time.Millisecond)
 	<-timer.C
@@ -105,23 +105,23 @@ func blockingWork(workerID int) {
 // goroutineContentionWork creates many goroutines
 func goroutineContentionWork() {
 	var wg sync.WaitGroup
-	
+
 	// Create multiple goroutines that do work
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			
+
 			// Each goroutine does some blocking work
 			blockingWork(id)
-			
+
 			// And some CPU work
 			for j := 0; j < 10000; j++ {
 				_ = j * j
 			}
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 }

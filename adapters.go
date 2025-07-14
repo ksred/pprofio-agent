@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+const (
+	DefaultHTTPStatusOK                  = 200
+	DefaultHTTPStatusInternalServerError = 500
+	PanicStatusCode                      = 500
+	DefaultStatusCode                    = 200
+)
+
 // requestIDKey is the context key for storing request IDs
 type requestIDKey struct{}
 
@@ -39,6 +46,7 @@ func (ma *MiddlewareAdapter) WithTags(tags map[string]string) *MiddlewareAdapter
 	for k, v := range tags {
 		ma.tags[k] = v
 	}
+
 	return ma
 }
 
@@ -47,6 +55,7 @@ func (ma *MiddlewareAdapter) WithRouteExtractor(extractor RouteExtractor) *Middl
 	ma.mu.Lock()
 	defer ma.mu.Unlock()
 	ma.routeExtractor = extractor
+
 	return ma
 }
 
@@ -81,7 +90,7 @@ func (ma *MiddlewareAdapter) ForHTTP() func(http.Handler) http.Handler {
 			startTime := time.Now()
 			rw := &enhancedResponseWriter{
 				ResponseWriter: w,
-				statusCode:     200,
+				statusCode:     DefaultStatusCode,
 				startTime:      startTime,
 			}
 
@@ -92,8 +101,8 @@ func (ma *MiddlewareAdapter) ForHTTP() func(http.Handler) http.Handler {
 					fmt.Printf("Panic in HTTP handler: %v\n%s", err, debug.Stack())
 
 					// Set error status if not already set
-					if rw.statusCode == 200 {
-						rw.statusCode = 500
+					if rw.statusCode == DefaultHTTPStatusOK {
+						rw.statusCode = PanicStatusCode
 					}
 
 					// Ensure endTime is set for metrics collection
@@ -132,12 +141,13 @@ func (ma *MiddlewareAdapter) ForHTTP() func(http.Handler) http.Handler {
 }
 
 // collectMetrics collects and sends metrics for a completed request
-func (ma *MiddlewareAdapter) collectMetrics(r *http.Request, rw *enhancedResponseWriter, requestID string) {
+func (ma *MiddlewareAdapter) collectMetrics(r *http.Request, rw *enhancedResponseWriter, _ string) {
 	// Calculate duration
 	duration := rw.endTime.Sub(rw.startTime)
 
 	// Get path - use route extractor if available
 	path := r.URL.Path
+
 	ma.mu.RLock()
 	if ma.routeExtractor != nil {
 		path = ma.routeExtractor(r)
@@ -152,7 +162,7 @@ func (ma *MiddlewareAdapter) collectMetrics(r *http.Request, rw *enhancedRespons
 
 	// Create metrics
 	metrics := &RequestMetrics{
-		RequestID:    requestID,
+		RequestID:    GetRequestIDFromContext(r.Context()),
 		Method:       r.Method,
 		Path:         path,
 		StatusCode:   rw.statusCode,
@@ -219,6 +229,7 @@ func (rw *enhancedResponseWriter) WriteHeader(code int) {
 	if rw.endTime.IsZero() {
 		rw.endTime = time.Now()
 	}
+
 	rw.ResponseWriter.WriteHeader(code)
 }
 
@@ -227,8 +238,10 @@ func (rw *enhancedResponseWriter) Write(b []byte) (int, error) {
 	if rw.endTime.IsZero() {
 		rw.endTime = time.Now()
 	}
+
 	n, err := rw.ResponseWriter.Write(b)
 	rw.responseSize += int64(n)
+
 	return n, err
 }
 
@@ -237,6 +250,7 @@ func GetRequestIDFromContext(ctx context.Context) string {
 	if requestID, ok := ctx.Value(requestIDKey{}).(string); ok {
 		return requestID
 	}
+
 	return ""
 }
 

@@ -48,14 +48,17 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 
 	// Send with retries
 	var lastErr error
+
 	for attempt := 0; attempt < m.retries; attempt++ {
 		if err := m.sendRequest(ctx, payload); err != nil {
 			lastErr = err
 			// Exponential backoff
 			backoffMs := (1 << uint(attempt)) * 100
 			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
+
 			continue
 		}
+
 		return nil
 	}
 

@@ -133,7 +133,7 @@ func TestHTTPMiddleware_BasicFunctionality(t *testing.T) {
 	wrappedHandler := middleware(testHandler)
 
 	// Create test request
-	req := httptest.NewRequest("GET", "/api/test", nil)
+	req := httptest.NewRequest("GET", "/api/test", http.NoBody)
 	req.Header.Set("User-Agent", "test-client/1.0")
 	w := httptest.NewRecorder()
 
@@ -177,7 +177,7 @@ func TestHTTPMiddleware_ExcludedPaths(t *testing.T) {
 	wrappedHandler := middleware(testHandler)
 
 	// Test excluded path
-	req := httptest.NewRequest("GET", "/health", nil)
+	req := httptest.NewRequest("GET", "/health", http.NoBody)
 	w := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
@@ -185,7 +185,7 @@ func TestHTTPMiddleware_ExcludedPaths(t *testing.T) {
 	assert.Nil(t, capturedMetrics)
 
 	// Test non-excluded path
-	req = httptest.NewRequest("GET", "/api/users", nil)
+	req = httptest.NewRequest("GET", "/api/users", http.NoBody)
 	w = httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
@@ -217,7 +217,7 @@ func TestHTTPMiddleware_Sampling(t *testing.T) {
 
 	// Make multiple requests
 	for i := 0; i < 10; i++ {
-		req := httptest.NewRequest("GET", "/api/test", nil)
+		req := httptest.NewRequest("GET", "/api/test", http.NoBody)
 		w := httptest.NewRecorder()
 		wrappedHandler.ServeHTTP(w, req)
 	}
@@ -248,7 +248,7 @@ func TestHTTPMiddleware_ConcurrentRequests(t *testing.T) {
 	done := make(chan bool)
 	for i := 0; i < 5; i++ {
 		go func() {
-			req := httptest.NewRequest("GET", "/api/test", nil)
+			req := httptest.NewRequest("GET", "/api/test", http.NoBody)
 			w := httptest.NewRecorder()
 			wrappedHandler.ServeHTTP(w, req)
 			done <- true
@@ -325,7 +325,7 @@ func TestHTTPMiddleware_MetricsCollection(t *testing.T) {
 	wrappedHandler := middleware(handler)
 
 	// Create test request
-	req := httptest.NewRequest("GET", "/test", nil)
+	req := httptest.NewRequest("GET", "/test", http.NoBody)
 	req.Header.Set("User-Agent", "test-agent")
 	w := httptest.NewRecorder()
 
