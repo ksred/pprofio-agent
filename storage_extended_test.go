@@ -2,6 +2,7 @@ package pprofio
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -404,13 +405,26 @@ func TestFileStorage_SuccessfulUpload(t *testing.T) {
 		t.Fatalf("Upload failed: %v", err)
 	}
 	
-	expectedPath := filepath.Join(targetDir, "test-profile.pprof")
-	if result != expectedPath {
-		t.Errorf("Expected result path '%s', got '%s'", expectedPath, result)
+	// Parse the JSON response
+	var response map[string]string
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Failed to parse JSON response: %v", err)
 	}
 	
-	// Verify file was copied
-	copiedContent, err := os.ReadFile(result)
+	// Check required fields
+	if response["profile_id"] == "" {
+		t.Error("Response missing profile_id")
+	}
+	if response["profile_url"] == "" {
+		t.Error("Response missing profile_url")
+	}
+	if response["type"] == "" {
+		t.Error("Response missing type")
+	}
+	
+	// Verify file was copied to expected location
+	expectedPath := filepath.Join(targetDir, "test-profile.pprof")
+	copiedContent, err := os.ReadFile(expectedPath)
 	if err != nil {
 		t.Fatalf("Failed to read copied file: %v", err)
 	}

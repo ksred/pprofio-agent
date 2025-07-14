@@ -115,3 +115,26 @@ func DefaultConfig(apiKey, ingestURL, serviceName string) Config {
 		OutputToStdout:   false,
 	}
 }
+
+// ComprehensiveConfig creates a configuration with all profile types enabled
+func ComprehensiveConfig(apiKey, ingestURL, serviceName string) Config {
+	return Config{
+		APIKey:           apiKey,
+		IngestURL:        ingestURL,
+		SampleRate:       DefaultSampleRate,
+		ProfileDuration:  DefaultProfileDuration,
+		Storage:          &HTTPStorage{URL: ingestURL + "/upload", APIKey: apiKey},
+		ServiceName:      serviceName,
+		Tags:             make(map[string]string),
+		MemProfileRate:   DefaultMemProfileRate,
+		MutexFraction:    DefaultMutexFraction,
+		BlockProfileRate: DefaultBlockProfileRate,
+		EnableCPU:        true,
+		EnableMemory:     true,
+		EnableGoroutine:  true,
+		EnableMutex:      true,
+		EnableBlock:      true,
+		EnableCustom:     true,
+		OutputToStdout:   false,
+	}
+}

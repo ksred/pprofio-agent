@@ -84,7 +84,7 @@ func TestComprehensiveProfileCollection(t *testing.T) {
 	}
 
 	// Verify that all profile types were started
-	expectedMessage := "Total profile types started: 7" // Updated: 6 original + 1 HTTP metrics
+	expectedMessage := "Total profile types started: 6" // CPU, Memory, Goroutine, Mutex, Block, Custom
 	if !strings.Contains(logs, expectedMessage) {
 		t.Errorf("Expected '%s' not found in logs: %s", expectedMessage, logs)
 	} else {
@@ -104,16 +104,18 @@ func TestComprehensiveProfileCollection(t *testing.T) {
 	}
 }
 
-// TestDefaultConfigEnablesAllProfiles tests that the updated DefaultConfig enables all profile types
-func TestDefaultConfigEnablesAllProfiles(t *testing.T) {
+// TestDefaultConfigEnablesMVPProfiles tests that DefaultConfig enables only MVP profile types (CPU and Memory)
+func TestDefaultConfigEnablesMVPProfiles(t *testing.T) {
 	config := DefaultConfig("test-key", "https://api.pprofio.com", "test-service")
 
+	// DefaultConfig should only enable MVP features (CPU and Memory)
 	expectedEnabled := map[string]bool{
 		"EnableCPU":       true,
 		"EnableMemory":    true,
-		"EnableGoroutine": true,
-		"EnableMutex":     true,
-		"EnableBlock":     true,
+		"EnableGoroutine": false,
+		"EnableMutex":     false,
+		"EnableBlock":     false,
+		"EnableCustom":    false,
 	}
 
 	actualEnabled := map[string]bool{
@@ -122,11 +124,42 @@ func TestDefaultConfigEnablesAllProfiles(t *testing.T) {
 		"EnableGoroutine": config.EnableGoroutine,
 		"EnableMutex":     config.EnableMutex,
 		"EnableBlock":     config.EnableBlock,
+		"EnableCustom":    config.EnableCustom,
 	}
 
 	for profile, expected := range expectedEnabled {
 		if actualEnabled[profile] != expected {
 			t.Errorf("DefaultConfig %s = %v, want %v", profile, actualEnabled[profile], expected)
+		}
+	}
+}
+
+// TestComprehensiveConfigEnablesAllProfiles tests that ComprehensiveConfig enables all profile types
+func TestComprehensiveConfigEnablesAllProfiles(t *testing.T) {
+	config := ComprehensiveConfig("test-key", "https://api.pprofio.com", "test-service")
+
+	// ComprehensiveConfig should enable all profile types
+	expectedEnabled := map[string]bool{
+		"EnableCPU":       true,
+		"EnableMemory":    true,
+		"EnableGoroutine": true,
+		"EnableMutex":     true,
+		"EnableBlock":     true,
+		"EnableCustom":    true,
+	}
+
+	actualEnabled := map[string]bool{
+		"EnableCPU":       config.EnableCPU,
+		"EnableMemory":    config.EnableMemory,
+		"EnableGoroutine": config.EnableGoroutine,
+		"EnableMutex":     config.EnableMutex,
+		"EnableBlock":     config.EnableBlock,
+		"EnableCustom":    config.EnableCustom,
+	}
+
+	for profile, expected := range expectedEnabled {
+		if actualEnabled[profile] != expected {
+			t.Errorf("ComprehensiveConfig %s = %v, want %v", profile, actualEnabled[profile], expected)
 		}
 	}
 }

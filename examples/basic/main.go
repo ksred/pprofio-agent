@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -50,23 +51,77 @@ func main() {
 	fmt.Println("Profiler started! Collecting CPU, memory, goroutine, mutex, and block profiles every 10 seconds.")
 	fmt.Println("Press Ctrl+C to stop...")
 
-	// Create a workload to profile
+	// Create multiple workloads to demonstrate different profiling capabilities
+	// CPU-intensive workload
 	go func() {
 		for {
-			// CPU-intensive work
-			for i := 0; i < 1000000; i++ {
-				_ = i * i
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				cpuIntensiveWork()
+				time.Sleep(100 * time.Millisecond)
 			}
+		}
+	}()
 
-			// Memory-intensive work
-			data := make([][]byte, 100)
-			for i := 0; i < 100; i++ {
-				data[i] = make([]byte, 1024*1024) // Allocate 1MB
-				for j := 0; j < len(data[i]); j++ {
-					data[i][j] = byte(j)
-				}
+	// Memory-intensive workload
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				memoryIntensiveWork()
+				time.Sleep(2 * time.Second)
 			}
-			time.Sleep(time.Second)
+		}
+	}()
+
+	// Mutex contention workload
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				var wg sync.WaitGroup
+				for i := 0; i < 3; i++ {
+					wg.Add(1)
+					go func(id int) {
+						defer wg.Done()
+						mutexContentionWork(id)
+					}(i)
+				}
+				wg.Wait()
+				time.Sleep(3 * time.Second)
+			}
+		}
+	}()
+
+	// Blocking operations workload
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				blockingWork(1)
+				time.Sleep(2 * time.Second)
+			}
+		}
+	}()
+
+	// Goroutine creation workload
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				goroutineContentionWork()
+				time.Sleep(5 * time.Second)
+			}
 		}
 	}()
 

@@ -7,6 +7,7 @@ package pprofio
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 )
@@ -77,46 +78,65 @@ func (p *Profiler) start(ctx context.Context) error {
 	// Configure runtime settings
 	if p.config.EnableMemory {
 		runtime.MemProfileRate = p.config.MemProfileRate
+		fmt.Fprintf(os.Stderr, "Memory profiling enabled with rate: %d\n", p.config.MemProfileRate)
 	}
 
 	if p.config.EnableMutex {
 		runtime.SetMutexProfileFraction(p.config.MutexFraction)
+		fmt.Fprintf(os.Stderr, "Mutex profiling enabled with fraction: %d\n", p.config.MutexFraction)
 	}
 
 	if p.config.EnableBlock {
 		runtime.SetBlockProfileRate(p.config.BlockProfileRate)
+		fmt.Fprintf(os.Stderr, "Block profiling enabled with rate: %d\n", p.config.BlockProfileRate)
 	}
 
 	// Start collection goroutines
+	profileTypesStarted := 0
+	
 	if p.config.EnableCPU {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeCPU)
+		fmt.Fprintf(os.Stderr, "CPU profiling started\n")
+		profileTypesStarted++
 	}
 
 	if p.config.EnableMemory {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeMemory)
+		fmt.Fprintf(os.Stderr, "Memory profiling started\n")
+		profileTypesStarted++
 	}
 
 	if p.config.EnableGoroutine {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeGoroutine)
+		fmt.Fprintf(os.Stderr, "Goroutine profiling started\n")
+		profileTypesStarted++
 	}
 
 	if p.config.EnableMutex {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeMutex)
+		fmt.Fprintf(os.Stderr, "Mutex profiling started\n")
+		profileTypesStarted++
 	}
 
 	if p.config.EnableBlock {
 		p.wg.Add(1)
 		go p.collectProfiles(ctx, profileTypeBlock)
+		fmt.Fprintf(os.Stderr, "Block profiling started\n")
+		profileTypesStarted++
 	}
 
 	if p.config.EnableCustom {
 		p.wg.Add(1)
 		go p.processCustomSpans(ctx)
+		fmt.Fprintf(os.Stderr, "Custom profiling started\n")
+		profileTypesStarted++
 	}
+	
+	fmt.Fprintf(os.Stderr, "Total profile types started: %d\n", profileTypesStarted)
 
 	p.initialized = true
 	return nil

@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	
+	"github.com/google/uuid"
 )
 
 type Storage interface {
@@ -147,6 +149,29 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 	return "", fmt.Errorf("upload failed after %d attempts: %w", s.Retries, lastErr)
 }
 
+// extractProfileType extracts the profile type from the filename
+func extractProfileType(filename string) string {
+	// Remove extension
+	name := strings.TrimSuffix(filename, filepath.Ext(filename))
+	
+	// Common profile type patterns
+	if strings.Contains(name, "cpu") {
+		return "cpu"
+	} else if strings.Contains(name, "memory") || strings.Contains(name, "heap") {
+		return "memory"
+	} else if strings.Contains(name, "goroutine") {
+		return "goroutine"
+	} else if strings.Contains(name, "mutex") {
+		return "mutex"
+	} else if strings.Contains(name, "block") {
+		return "block"
+	} else if strings.Contains(name, "custom") {
+		return "custom"
+	}
+	
+	return "unknown"
+}
+
 type FileStorage struct {
 	Directory string
 }
@@ -190,7 +215,25 @@ func (s *FileStorage) Upload(ctx context.Context, filePath string) (string, erro
 		return "", fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	return targetPath, nil
+	// Extract profile type from filename
+	profileType := extractProfileType(fileName)
+	
+	// Generate a profile ID
+	profileID := uuid.New().String()
+	
+	// Return JSON response like HTTPStorage does
+	response := map[string]string{
+		"profile_id":  profileID,
+		"profile_url": targetPath,
+		"type":        profileType,
+	}
+	
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal response: %w", err)
+	}
+	
+	return string(responseJSON), nil
 }
 
 // StdoutStorage outputs profile data and metadata to stdout for testing purposes
