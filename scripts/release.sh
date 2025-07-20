@@ -112,6 +112,7 @@ if command -v golangci-lint &> /dev/null; then
         read -r CONTINUE
         if [[ "$CONTINUE" != "y" && "$CONTINUE" != "Y" ]]; then
             print_error "Release cancelled due to linting issues"
+            exit 1
         fi
     else
         print_success "Code quality checks passed"
