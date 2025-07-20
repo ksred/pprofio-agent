@@ -22,6 +22,13 @@ const (
 	profileTypeCustom    profileType = "custom"
 )
 
+const (
+	// DefaultSpanBufferSize is the default buffer size for custom spans
+	DefaultSpanBufferSize = 1000
+	// MaxUniqueSpanNames limits the number of unique span names to prevent unbounded memory growth
+	MaxUniqueSpanNames = 10000
+)
+
 type Profiler struct {
 	config      Config
 	mu          sync.Mutex
@@ -45,7 +52,7 @@ func newProfiler(config Config) (*Profiler, error) {
 	p := &Profiler{
 		config: config,
 		stopCh: make(chan struct{}),
-		spanCh: make(chan *Span, 1000), // Buffer for custom spans
+		spanCh: make(chan *Span, DefaultSpanBufferSize), // Buffer for custom spans
 	}
 
 	return p, nil
@@ -88,6 +95,9 @@ func (p *Profiler) collectProfile(ctx context.Context, profileType profileType) 
 		return p.collectMutex(ctx)
 	case profileTypeBlock:
 		return p.collectBlock(ctx)
+	case profileTypeCustom:
+		// Custom profiles are handled separately
+		return nil
 	default:
 		return fmt.Errorf("unknown profile type: %s", profileType)
 	}
@@ -113,7 +123,6 @@ func (p *Profiler) collectCPU(ctx context.Context) error {
 	case <-profileCtx.Done():
 		// Profile duration completed
 	case <-p.stopCh:
-		// Profiler is stopping
 	}
 
 	pprof.StopCPUProfile()
@@ -193,7 +202,7 @@ func (p *Profiler) collectBlock(ctx context.Context) error {
 	return p.uploadProfile(ctx, f.Name(), string(profileTypeBlock))
 }
 
-func (p *Profiler) uploadProfile(ctx context.Context, filePath, profileType string) error {
+func (p *Profiler) uploadProfile(ctx context.Context, filePath, _ string) error {
 	// Upload the profile and parse the returned JSON response
 	uploadResp, err := p.config.Storage.Upload(ctx, filePath)
 	if err != nil {

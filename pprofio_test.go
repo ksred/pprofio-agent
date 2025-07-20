@@ -97,7 +97,7 @@ func TestProfiler_Start(t *testing.T) {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -172,7 +172,7 @@ func TestProfiler_Stop(t *testing.T) {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -217,7 +217,7 @@ func TestProfiler_Stop(t *testing.T) {
 		}
 	})
 
-	t.Run("StopWithoutStart", func(t *testing.T) {
+	t.Run("StopWithoutStart", func(_ *testing.T) {
 		// This should not panic or cause issues
 		profiler.Stop()
 	})

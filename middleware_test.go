@@ -123,7 +123,7 @@ func TestHTTPMiddleware_BasicFunctionality(t *testing.T) {
 	})
 
 	// Create a simple test handler
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Hello, World!"))
 	})
@@ -169,7 +169,7 @@ func TestHTTPMiddleware_ExcludedPaths(t *testing.T) {
 		capturedMetrics = metrics
 	})
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -204,11 +204,11 @@ func TestHTTPMiddleware_Sampling(t *testing.T) {
 	collector := NewMetricsCollector(config)
 	var captureCount int
 
-	collector.SetMetricsHandler(func(metrics *RequestMetrics) {
+	collector.SetMetricsHandler(func(_ *RequestMetrics) {
 		captureCount++
 	})
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -235,7 +235,7 @@ func TestHTTPMiddleware_ConcurrentRequests(t *testing.T) {
 
 	collector := NewMetricsCollector(config)
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Simulate some processing time
 		time.Sleep(10 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -279,7 +279,7 @@ func TestHTTPMiddleware_ErrorHandling(t *testing.T) {
 	})
 
 	// Handler that returns an error status
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error"))
 	})
@@ -315,7 +315,7 @@ func TestHTTPMiddleware_MetricsCollection(t *testing.T) {
 	})
 
 	// Create a simple handler
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Hello, World!"))
 	})

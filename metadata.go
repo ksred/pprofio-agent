@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+const (
+	DefaultMetadataTimeout = 10 * time.Second
+	DefaultMetadataRetries = 3
+	BackoffBaseMs          = 100
+)
+
 // metadataClient handles sending profile metadata to the ingest API
 type metadataClient struct {
 	ingestURL string
@@ -23,8 +29,8 @@ func newMetadataClient(ingestURL, apiKey string) *metadataClient {
 	return &metadataClient{
 		ingestURL: ingestURL,
 		apiKey:    apiKey,
-		client:    &http.Client{Timeout: 10 * time.Second},
-		retries:   3,
+		client:    &http.Client{Timeout: DefaultMetadataTimeout},
+		retries:   DefaultMetadataRetries,
 	}
 }
 
@@ -53,7 +59,7 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 		if err := m.sendRequest(ctx, payload); err != nil {
 			lastErr = err
 			// Exponential backoff
-			backoffMs := (1 << uint(attempt)) * 100
+			backoffMs := (1 << attempt) * BackoffBaseMs
 			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
 
 			continue

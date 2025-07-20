@@ -53,6 +53,7 @@ func TestNewMetadataClient_Coverage(t *testing.T) {
 
 	if client == nil {
 		t.Error("newMetadataClient() should return a valid client")
+		return
 	}
 
 	if client.client == nil {
@@ -62,7 +63,7 @@ func TestNewMetadataClient_Coverage(t *testing.T) {
 
 func TestMetadata_sendMetadata_InternalFunction(t *testing.T) {
 	// Create a test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()

@@ -24,22 +24,23 @@ func NewMockJSONStorage() *MockJSONStorage {
 	}
 }
 
-func (m *MockJSONStorage) Upload(ctx context.Context, filePath string) (string, error) {
+func (m *MockJSONStorage) Upload(_ context.Context, filePath string) (string, error) {
 	if m.ShouldFail {
 		return "", fmt.Errorf("mock upload failed")
 	}
 
 	// Determine profile type from filename
 	profileType := "unknown"
-	if contains(filePath, "cpu") {
+	switch {
+	case contains(filePath, "cpu"):
 		profileType = "cpu"
-	} else if contains(filePath, "memory") || contains(filePath, "heap") {
+	case contains(filePath, "memory") || contains(filePath, "heap"):
 		profileType = "memory"
-	} else if contains(filePath, "goroutine") {
+	case contains(filePath, "goroutine"):
 		profileType = "goroutine"
-	} else if contains(filePath, "mutex") {
+	case contains(filePath, "mutex"):
 		profileType = "mutex"
-	} else if contains(filePath, "block") {
+	case contains(filePath, "block"):
 		profileType = "block"
 	}
 
@@ -90,7 +91,7 @@ func NewMockFailingJSONStorage(errorMsg string) *MockFailingJSONStorage {
 	}
 }
 
-func (m *MockFailingJSONStorage) Upload(ctx context.Context, filePath string) (string, error) {
+func (m *MockFailingJSONStorage) Upload(_ context.Context, _ string) (string, error) {
 	return "", errors.New(m.ErrorMessage)
 }
 
@@ -101,6 +102,19 @@ func NewMockInvalidJSONStorage() *MockInvalidJSONStorage {
 	return &MockInvalidJSONStorage{}
 }
 
-func (m *MockInvalidJSONStorage) Upload(ctx context.Context, filePath string) (string, error) {
+func (m *MockInvalidJSONStorage) Upload(_ context.Context, _ string) (string, error) {
 	return "invalid json response", nil
+}
+
+// Close implements the Storage interface for all mock storages
+func (m *MockJSONStorage) Close() error {
+	return nil
+}
+
+func (m *MockFailingJSONStorage) Close() error {
+	return nil
+}
+
+func (m *MockInvalidJSONStorage) Close() error {
+	return nil
 }

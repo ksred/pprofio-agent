@@ -2,6 +2,7 @@ package pprofio
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,7 +52,7 @@ func TestMiddleware_RealServerIntegration(t *testing.T) {
 	// Create test HTTP handlers
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/users", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/users", func(w http.ResponseWriter, _ *http.Request) {
 		// Simulate database query
 		time.Sleep(10 * time.Millisecond)
 		w.Header().Set("Content-Type", "application/json")
@@ -59,7 +60,7 @@ func TestMiddleware_RealServerIntegration(t *testing.T) {
 		w.Write([]byte(`[{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]`))
 	})
 
-	mux.HandleFunc("/api/users/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/users/", func(w http.ResponseWriter, _ *http.Request) {
 		// Simulate individual user lookup
 		time.Sleep(5 * time.Millisecond)
 		w.Header().Set("Content-Type", "application/json")
@@ -67,12 +68,12 @@ func TestMiddleware_RealServerIntegration(t *testing.T) {
 		w.Write([]byte(`{"id": 1, "name": "John Doe"}`))
 	})
 
-	mux.HandleFunc("/api/error", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/error", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "Internal server error"}`))
 	})
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		// This should be excluded from metrics
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
@@ -109,7 +110,7 @@ func TestMiddleware_RealServerIntegration(t *testing.T) {
 				body = bytes.NewReader([]byte(tc.body))
 			}
 
-			req, err := http.NewRequest(tc.method, server.URL+tc.path, body)
+			req, err := http.NewRequestWithContext(context.Background(), tc.method, server.URL+tc.path, body)
 			require.NoError(t, err)
 
 			req.Header.Set("User-Agent", tc.userAgent)
@@ -190,7 +191,7 @@ func TestMiddleware_ConcurrentLoad(t *testing.T) {
 	var metricsCount int64
 	var metricsMu sync.Mutex
 
-	collector.SetMetricsHandler(func(metrics *RequestMetrics) {
+	collector.SetMetricsHandler(func(_ *RequestMetrics) {
 		metricsMu.Lock()
 		defer metricsMu.Unlock()
 		metricsCount++
@@ -227,7 +228,7 @@ func TestMiddleware_ConcurrentLoad(t *testing.T) {
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
-		go func(goroutineID int) {
+		go func(_ int) {
 			defer wg.Done()
 
 			for j := 0; j < requestsPerGoroutine; j++ {
@@ -238,7 +239,12 @@ func TestMiddleware_ConcurrentLoad(t *testing.T) {
 					path = "/slow"
 				}
 
-				resp, err := client.Get(server.URL + path)
+				req, reqErr := http.NewRequestWithContext(context.Background(), "GET", server.URL+path, http.NoBody)
+				if reqErr != nil {
+					t.Errorf("Request creation failed: %v", reqErr)
+					return
+				}
+				resp, err := client.Do(req)
 				if err != nil {
 					t.Errorf("Request failed: %v", err)
 					return
@@ -286,7 +292,7 @@ func TestMiddleware_ResponseCapture(t *testing.T) {
 	})
 
 	// Handler that writes data gradually but not streaming
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 
@@ -303,7 +309,11 @@ func TestMiddleware_ResponseCapture(t *testing.T) {
 	defer server.Close()
 
 	// Make request and read response
-	resp, err := http.Get(server.URL + "/data")
+	req, reqErr := http.NewRequestWithContext(context.Background(), "GET", server.URL+"/data", http.NoBody)
+	if reqErr != nil {
+		t.Fatalf("Request creation failed: %v", reqErr)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -347,21 +357,21 @@ func TestMiddleware_ContentTypes(t *testing.T) {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/json", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Custom-Header", "json-endpoint")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"message": "hello"}`))
 	})
 
-	mux.HandleFunc("/xml", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/xml", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		w.Header().Set("X-Custom-Header", "xml-endpoint")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`<message>hello</message>`))
 	})
 
-	mux.HandleFunc("/binary", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/binary", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("X-Custom-Header", "binary-endpoint")
 		w.WriteHeader(http.StatusOK)
@@ -377,7 +387,12 @@ func TestMiddleware_ContentTypes(t *testing.T) {
 	// Test different content types
 	paths := []string{"/json", "/xml", "/binary"}
 	for _, path := range paths {
-		resp, err := client.Get(server.URL + path)
+		req, reqErr := http.NewRequestWithContext(context.Background(), "GET", server.URL+path, http.NoBody)
+		if reqErr != nil {
+			t.Errorf("Request creation failed: %v", reqErr)
+			return
+		}
+		resp, err := client.Do(req)
 		require.NoError(t, err)
 		resp.Body.Close()
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -448,7 +463,7 @@ func TestMiddleware_RouteExtraction(t *testing.T) {
 		return path
 	})
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -471,7 +486,12 @@ func TestMiddleware_RouteExtraction(t *testing.T) {
 	}
 
 	for _, test := range testPaths {
-		resp, err := client.Get(server.URL + test.requestPath)
+		req, reqErr := http.NewRequestWithContext(context.Background(), "GET", server.URL+test.requestPath, http.NoBody)
+		if reqErr != nil {
+			t.Errorf("Request creation failed: %v", reqErr)
+			return
+		}
+		resp, err := client.Do(req)
 		require.NoError(t, err)
 		resp.Body.Close()
 	}

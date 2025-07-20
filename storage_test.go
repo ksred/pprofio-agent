@@ -31,11 +31,11 @@ func TestHTTPStorage_Upload(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(content); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
+	if _, writeErr := tmpFile.WriteString(content); writeErr != nil {
+		t.Fatalf("Failed to write to temp file: %v", writeErr)
 	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temp file: %v", closeErr)
 	}
 
 	// Create a test server
@@ -86,11 +86,11 @@ func TestFileStorage_Upload(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(content); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
+	if _, writeErr := tmpFile.WriteString(content); writeErr != nil {
+		t.Fatalf("Failed to write to temp file: %v", writeErr)
 	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temp file: %v", closeErr)
 	}
 
 	// Create a directory for storage
@@ -114,8 +114,8 @@ func TestFileStorage_Upload(t *testing.T) {
 
 	// Parse the JSON response
 	var response map[string]string
-	if err := json.Unmarshal([]byte(path), &response); err != nil {
-		t.Fatalf("Failed to parse JSON response: %v", err)
+	if unmarshalErr := json.Unmarshal([]byte(path), &response); unmarshalErr != nil {
+		t.Fatalf("Failed to parse JSON response: %v", unmarshalErr)
 	}
 
 	// Check the response has required fields

@@ -24,6 +24,9 @@ func TestProfiler_collectProfile_UnknownType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newProfiler() error = %v", err)
 	}
+	if profiler == nil {
+		t.Fatalf("newProfiler() returned nil profiler")
+	}
 
 	ctx := context.Background()
 
@@ -153,7 +156,7 @@ func TestProfiler_uploadProfile_ErrorCases(t *testing.T) {
 		validJSONStorage := NewMockJSONStorage()
 
 		// Create server that fails metadata requests
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer server.Close()
@@ -280,6 +283,7 @@ func TestProfiler_RuntimeSettings(t *testing.T) {
 		// The runtime values are stored internally during profiler creation
 		if profiler == nil {
 			t.Error("Expected profiler to be created")
+			return
 		}
 
 		if profiler.config.ServiceName != "test-service" {
@@ -293,7 +297,7 @@ func TestProfiler_RuntimeSettings(t *testing.T) {
 func TestProfiler_start_stop_internals(t *testing.T) {
 	storage := NewMockJSONStorage()
 
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -316,6 +320,9 @@ func TestProfiler_start_stop_internals(t *testing.T) {
 	profiler, err := newProfiler(config)
 	if err != nil {
 		t.Fatalf("newProfiler() error = %v", err)
+	}
+	if profiler == nil {
+		t.Fatalf("newProfiler() returned nil profiler")
 	}
 
 	// Test internal start method
@@ -342,7 +349,7 @@ func TestProfiler_start_stop_internals(t *testing.T) {
 func TestProfiler_collectMemory_ForceGC(t *testing.T) {
 	storage := NewMockJSONStorage()
 
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -357,6 +364,9 @@ func TestProfiler_collectMemory_ForceGC(t *testing.T) {
 	profiler, err := newProfiler(config)
 	if err != nil {
 		t.Fatalf("newProfiler() error = %v", err)
+	}
+	if profiler == nil {
+		t.Fatalf("newProfiler() returned nil profiler")
 	}
 
 	// Test memory collection which should force GC
@@ -370,7 +380,7 @@ func TestProfiler_collectMemory_ForceGC(t *testing.T) {
 func TestProfiler_profileTypes_Coverage(t *testing.T) {
 	storage := NewMockJSONStorage()
 
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -385,6 +395,9 @@ func TestProfiler_profileTypes_Coverage(t *testing.T) {
 	profiler, err := newProfiler(config)
 	if err != nil {
 		t.Fatalf("newProfiler() error = %v", err)
+	}
+	if profiler == nil {
+		t.Fatalf("newProfiler() returned nil profiler")
 	}
 
 	ctx := context.Background()

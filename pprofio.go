@@ -15,10 +15,8 @@ import (
 // Version is the current package version
 const Version = "0.1.0"
 
-// New creates a new profiler with the provided configuration.
-// It returns an error if the configuration is invalid.
-func New(config Config) (*Profiler, error) {
-	// Apply defaults if necessary
+// applyDefaults applies default values to the configuration
+func applyDefaults(config *Config) {
 	if config.SampleRate == 0 {
 		config.SampleRate = DefaultSampleRate
 	}
@@ -38,21 +36,32 @@ func New(config Config) (*Profiler, error) {
 	if config.BlockProfileRate == 0 {
 		config.BlockProfileRate = DefaultBlockProfileRate
 	}
+}
 
-	// Create stdout storage if OutputToStdout is enabled
+// configureStorage sets up the storage backend
+func configureStorage(config *Config) {
 	if config.OutputToStdout {
 		config.Storage = NewStdoutStorage()
 	} else if config.Storage == nil && config.APIKey != "" && config.IngestURL != "" {
-		// Create HTTP storage if not provided and not in stdout mode
 		config.Storage = NewHTTPStorage(config.IngestURL+"/upload", config.APIKey, config.Env)
 	}
+}
 
-	// Enable CPU and Memory by default if nothing is enabled
+// enableDefaultProfiles enables CPU and Memory by default if nothing is enabled
+func enableDefaultProfiles(config *Config) {
 	if !config.EnableCPU && !config.EnableMemory && !config.EnableGoroutine &&
 		!config.EnableMutex && !config.EnableBlock && !config.EnableCustom {
 		config.EnableCPU = true
 		config.EnableMemory = true
 	}
+}
+
+// New creates a new profiler with the provided configuration.
+// It returns an error if the configuration is invalid.
+func New(config Config) (*Profiler, error) {
+	applyDefaults(&config)
+	configureStorage(&config)
+	enableDefaultProfiles(&config)
 
 	return newProfiler(config)
 }
@@ -63,23 +72,15 @@ func (p *Profiler) Start(ctx context.Context) error {
 	return p.start(ctx)
 }
 
-// start is the internal implementation used by Start
-func (p *Profiler) start(ctx context.Context) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.initialized {
-		return fmt.Errorf("profiler already started")
-	}
-
-	// Store original runtime settings before configuring
+// storeOriginalSettings stores the original runtime settings
+func (p *Profiler) storeOriginalSettings() {
 	p.originalMemProfileRate = runtime.MemProfileRate
-	// Note: runtime doesn't provide getters for mutex and block rates,
-	// so we store reasonable defaults to restore
 	p.originalMutexFraction = 0    // Default is disabled
 	p.originalBlockProfileRate = 0 // Default is disabled
+}
 
-	// Configure runtime settings
+// configureRuntimeSettings configures runtime profiling settings
+func (p *Profiler) configureRuntimeSettings() {
 	if p.config.EnableMemory {
 		runtime.MemProfileRate = p.config.MemProfileRate
 		fmt.Fprintf(os.Stderr, "Memory profiling enabled with rate: %d\n", p.config.MemProfileRate)
@@ -94,48 +95,36 @@ func (p *Profiler) start(ctx context.Context) error {
 		runtime.SetBlockProfileRate(p.config.BlockProfileRate)
 		fmt.Fprintf(os.Stderr, "Block profiling enabled with rate: %d\n", p.config.BlockProfileRate)
 	}
+}
 
-	// Start collection goroutines
-	profileTypesStarted := 0
+// startProfileType starts a specific profile type
+func (p *Profiler) startProfileType(ctx context.Context, profileType profileType, name string) {
+	p.wg.Add(1)
+	go p.collectProfiles(ctx, profileType)
+	fmt.Fprintf(os.Stderr, "%s profiling started\n", name)
+}
 
-	if p.config.EnableCPU {
-		p.wg.Add(1)
-		go p.collectProfiles(ctx, profileTypeCPU)
-		fmt.Fprintf(os.Stderr, "CPU profiling started\n")
-
-		profileTypesStarted++
+// startProfiles starts all enabled profile types
+func (p *Profiler) startProfiles(ctx context.Context) int {
+	count := 0
+	profiles := []struct {
+		enabled bool
+		pType   profileType
+		name    string
+	}{
+		{p.config.EnableCPU, profileTypeCPU, "CPU"},
+		{p.config.EnableMemory, profileTypeMemory, "Memory"},
+		{p.config.EnableGoroutine, profileTypeGoroutine, "Goroutine"},
+		{p.config.EnableMutex, profileTypeMutex, "Mutex"},
+		{p.config.EnableBlock, profileTypeBlock, "Block"},
 	}
 
-	if p.config.EnableMemory {
-		p.wg.Add(1)
-		go p.collectProfiles(ctx, profileTypeMemory)
-		fmt.Fprintf(os.Stderr, "Memory profiling started\n")
+	for _, prof := range profiles {
+		if prof.enabled {
+			p.startProfileType(ctx, prof.pType, prof.name)
 
-		profileTypesStarted++
-	}
-
-	if p.config.EnableGoroutine {
-		p.wg.Add(1)
-		go p.collectProfiles(ctx, profileTypeGoroutine)
-		fmt.Fprintf(os.Stderr, "Goroutine profiling started\n")
-
-		profileTypesStarted++
-	}
-
-	if p.config.EnableMutex {
-		p.wg.Add(1)
-		go p.collectProfiles(ctx, profileTypeMutex)
-		fmt.Fprintf(os.Stderr, "Mutex profiling started\n")
-
-		profileTypesStarted++
-	}
-
-	if p.config.EnableBlock {
-		p.wg.Add(1)
-		go p.collectProfiles(ctx, profileTypeBlock)
-		fmt.Fprintf(os.Stderr, "Block profiling started\n")
-
-		profileTypesStarted++
+			count++
+		}
 	}
 
 	if p.config.EnableCustom {
@@ -143,9 +132,25 @@ func (p *Profiler) start(ctx context.Context) error {
 		go p.processCustomSpans(ctx)
 		fmt.Fprintf(os.Stderr, "Custom profiling started\n")
 
-		profileTypesStarted++
+		count++
 	}
 
+	return count
+}
+
+// start is the internal implementation used by Start
+func (p *Profiler) start(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.initialized {
+		return fmt.Errorf("profiler already started")
+	}
+
+	p.storeOriginalSettings()
+	p.configureRuntimeSettings()
+
+	profileTypesStarted := p.startProfiles(ctx)
 	fmt.Fprintf(os.Stderr, "Total profile types started: %d\n", profileTypesStarted)
 
 	p.initialized = true
@@ -182,6 +187,11 @@ func (p *Profiler) stop() {
 	runtime.SetMutexProfileFraction(p.originalMutexFraction)
 	runtime.SetBlockProfileRate(p.originalBlockProfileRate)
 
+	// Close storage connections
+	if p.config.Storage != nil {
+		p.config.Storage.Close()
+	}
+
 	p.initialized = false
 }
 
@@ -211,7 +221,6 @@ func StartSpan(ctx context.Context, name string, tags ...string) (context.Contex
 		case prof.spanCh <- span:
 			// Span queued successfully
 		default:
-			// Channel full, log and continue
 		}
 	}
 

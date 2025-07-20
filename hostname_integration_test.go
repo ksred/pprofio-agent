@@ -16,7 +16,8 @@ func TestHostnameInProfileMetadata(t *testing.T) {
 
 	// Create a test server to receive metadata
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/metadata" {
+		switch r.URL.Path {
+		case "/metadata":
 			// Capture the metadata
 			var metadata map[string]string
 			if err := json.NewDecoder(r.Body).Decode(&metadata); err != nil {
@@ -32,7 +33,7 @@ func TestHostnameInProfileMetadata(t *testing.T) {
 			}
 
 			w.WriteHeader(http.StatusOK)
-		} else if r.URL.Path == "/upload" {
+		case "/upload":
 			// Mock profile upload response
 			response := map[string]string{
 				"profile_id":  "test-profile-123",
@@ -41,7 +42,7 @@ func TestHostnameInProfileMetadata(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
-		} else {
+		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))

@@ -227,8 +227,8 @@ func TestFileStorageJSONResponse(t *testing.T) {
 
 	// Create a test profile file
 	testFile := filepath.Join(tempDir, "cpu.pprof")
-	if err := os.WriteFile(testFile, []byte("test profile data"), 0o644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
+	if writeErr := os.WriteFile(testFile, []byte("test profile data"), 0o644); writeErr != nil {
+		t.Fatalf("Failed to create test file: %v", writeErr)
 	}
 
 	// Upload the file

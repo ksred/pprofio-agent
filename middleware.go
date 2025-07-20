@@ -1,7 +1,7 @@
 package pprofio
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -124,7 +124,7 @@ func (mc *MetricsCollector) hashIP(ip string) string {
 		return ip
 	}
 
-	hash := md5.Sum([]byte(ip))
+	hash := sha256.Sum256([]byte(ip))
 
 	return fmt.Sprintf("%x", hash)
 }
@@ -185,7 +185,7 @@ type responseWriter struct {
 func newResponseWriter(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{
 		ResponseWriter: w,
-		statusCode:     200, // Default status code
+		statusCode:     DefaultHTTPStatusOK, // Default status code
 	}
 }
 

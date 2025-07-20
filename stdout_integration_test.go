@@ -38,8 +38,8 @@ func TestStdoutIntegration_EndToEnd(t *testing.T) {
 	defer cancel()
 
 	// Start profiling (this will run in background)
-	if err := profiler.Start(ctx); err != nil {
-		t.Fatalf("Failed to start profiler: %v", err)
+	if startErr := profiler.Start(ctx); startErr != nil {
+		t.Fatalf("Failed to start profiler: %v", startErr)
 	}
 
 	// Let it run briefly to generate some profiles

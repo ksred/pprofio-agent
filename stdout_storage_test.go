@@ -16,11 +16,11 @@ func TestStdoutStorage_Upload(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(content); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
+	if _, writeErr := tmpFile.WriteString(content); writeErr != nil {
+		t.Fatalf("Failed to write to temp file: %v", writeErr)
 	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temp file: %v", closeErr)
 	}
 
 	// Capture stdout
@@ -74,11 +74,11 @@ func TestStdoutStorage_OutputsMetadata(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString("memory profile data"); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
+	if _, writeErr := tmpFile.WriteString("memory profile data"); writeErr != nil {
+		t.Fatalf("Failed to write to temp file: %v", writeErr)
 	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temp file: %v", closeErr)
 	}
 
 	// Capture stdout

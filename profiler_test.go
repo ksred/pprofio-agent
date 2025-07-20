@@ -83,7 +83,7 @@ func TestProfilerLifecycle(t *testing.T) {
 	}
 
 	// Create a mock HTTP server for metadata
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -156,7 +156,7 @@ func TestCollectProfiles(t *testing.T) {
 	}
 
 	// Create a mock HTTP server for metadata
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -275,7 +275,7 @@ func TestAPIUsage(t *testing.T) {
 	}
 
 	// Create a mock HTTP server for metadata
-	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer metadataServer.Close()
@@ -380,11 +380,11 @@ func TestUploadProfileWithCorrectFlow(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString("test profile data"); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
+	if _, writeErr := tmpFile.WriteString("test profile data"); writeErr != nil {
+		t.Fatalf("Failed to write to temp file: %v", writeErr)
 	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temp file: %v", closeErr)
 	}
 
 	// Test the upload flow

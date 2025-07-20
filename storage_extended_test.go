@@ -88,7 +88,7 @@ func TestHTTPStorage_ErrorConditions(t *testing.T) {
 	})
 
 	t.Run("AuthenticationFailed", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
 		defer server.Close()
@@ -116,7 +116,7 @@ func TestHTTPStorage_ErrorConditions(t *testing.T) {
 	})
 
 	t.Run("ServerError", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer server.Close()
@@ -145,7 +145,7 @@ func TestHTTPStorage_ErrorConditions(t *testing.T) {
 	})
 
 	t.Run("TooManyRequests", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusTooManyRequests)
 		}))
 		defer server.Close()
@@ -170,7 +170,7 @@ func TestHTTPStorage_ErrorConditions(t *testing.T) {
 	})
 
 	t.Run("UnexpectedStatusCode", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusTeapot) // 418
 		}))
 		defer server.Close()
@@ -388,7 +388,7 @@ func TestFileStorage_SuccessfulUpload(t *testing.T) {
 	// Create source file
 	sourceFile := filepath.Join(sourceDir, "test-profile.pprof")
 	testContent := "test profile data"
-	err = os.WriteFile(sourceFile, []byte(testContent), 0644)
+	err = os.WriteFile(sourceFile, []byte(testContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
@@ -407,8 +407,8 @@ func TestFileStorage_SuccessfulUpload(t *testing.T) {
 
 	// Parse the JSON response
 	var response map[string]string
-	if err := json.Unmarshal([]byte(result), &response); err != nil {
-		t.Fatalf("Failed to parse JSON response: %v", err)
+	if unmarshalErr := json.Unmarshal([]byte(result), &response); unmarshalErr != nil {
+		t.Fatalf("Failed to parse JSON response: %v", unmarshalErr)
 	}
 
 	// Check required fields

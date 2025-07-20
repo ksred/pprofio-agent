@@ -58,6 +58,7 @@ const (
 
 type Storage interface {
 	Upload(ctx context.Context, filePath string) (string, error)
+	Close() error
 }
 
 type HTTPStorage struct {
@@ -69,10 +70,20 @@ type HTTPStorage struct {
 }
 
 func NewHTTPStorage(url, apiKey, env string) *HTTPStorage {
+	// Create HTTP client with proper transport settings
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	}
+
 	return &HTTPStorage{
-		URL:     url,
-		APIKey:  apiKey,
-		Client:  &http.Client{Timeout: DefaultHTTPTimeout},
+		URL:    url,
+		APIKey: apiKey,
+		Client: &http.Client{
+			Timeout:   DefaultHTTPTimeout,
+			Transport: transport,
+		},
 		Retries: DefaultRetries,
 		Env:     env,
 	}
@@ -160,24 +171,28 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 			continue
 		}
 
-		defer resp.Body.Close()
-
 		// Handle HTTP errors
 		if resp.StatusCode == HTTPStatusUnauthorized || resp.StatusCode == HTTPStatusForbidden {
+			resp.Body.Close()
 			return "", fmt.Errorf("authentication failed: %d", resp.StatusCode)
 		}
 
 		if shouldRetry(resp.StatusCode) {
+			resp.Body.Close()
 			lastErr = fmt.Errorf("server error: %d", resp.StatusCode)
+
 			continue
 		}
 
 		if resp.StatusCode < HTTPStatusOK || resp.StatusCode >= HTTPStatusMultipleChoices {
+			resp.Body.Close()
 			return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		}
 
 		// Read response
 		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response: %w", err)
 			continue
@@ -187,6 +202,16 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 	}
 
 	return "", fmt.Errorf("upload failed after %d attempts: %w", s.Retries, lastErr)
+}
+
+// Close closes idle connections in the HTTP client
+func (s *HTTPStorage) Close() error {
+	if s.Client != nil {
+		if transport, ok := s.Client.Transport.(*http.Transport); ok {
+			transport.CloseIdleConnections()
+		}
+	}
+	return nil
 }
 
 // extractProfileType extracts the profile type from the filename
@@ -275,6 +300,12 @@ func (s *FileStorage) Upload(_ context.Context, filePath string) (string, error)
 	}
 
 	return string(responseJSON), nil
+}
+
+// Close implements the Storage interface for FileStorage
+func (s *FileStorage) Close() error {
+	// FileStorage doesn't maintain any connections, so nothing to close
+	return nil
 }
 
 // StdoutStorage outputs profile data and metadata to stdout for testing purposes
@@ -393,4 +424,11 @@ func getDisplayProfileType(filePath string) string {
 	default:
 		return ProfileTypeUnknown
 	}
+}
+
+
+// Close implements the Storage interface for StdoutStorage
+func (s *StdoutStorage) Close() error {
+	// StdoutStorage doesn't maintain any connections, so nothing to close
+	return nil
 }
