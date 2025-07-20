@@ -14,5 +14,5 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# Run the release script and automatically respond 'y' to both linting and changelog prompts
-printf "y\ny\n" | ./scripts/release.sh "$VERSION"
+# Run the release script and automatically respond 'y' to all prompts (linting, changelog, and final confirmation)
+printf "y\ny\ny\n" | ./scripts/release.sh "$VERSION"
