@@ -48,12 +48,16 @@ const (
 	StdoutProfileURL              = "stdout"
 	LocalEnv                      = "local"
 	HTTPSScheme                   = "https"
-	UUIDLength                    = 32
-	UUIDBytesLength               = 16
-	UUIDVersionMask               = 0x0f
-	UUIDVersionValue              = 0x40
-	UUIDVariantMask               = 0x3f
-	UUIDVariantValue              = 0x80
+	// HTTP Transport settings
+	MaxIdleConns        = 100
+	MaxIdleConnsPerHost = 10
+	IdleConnTimeout     = 90 * time.Second
+	UUIDLength          = 32
+	UUIDBytesLength     = 16
+	UUIDVersionMask     = 0x0f
+	UUIDVersionValue    = 0x40
+	UUIDVariantMask     = 0x3f
+	UUIDVariantValue    = 0x80
 )
 
 type Storage interface {
@@ -72,9 +76,9 @@ type HTTPStorage struct {
 func NewHTTPStorage(url, apiKey, env string) *HTTPStorage {
 	// Create HTTP client with proper transport settings
 	transport := &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
+		MaxIdleConns:        MaxIdleConns,
+		MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+		IdleConnTimeout:     IdleConnTimeout,
 	}
 
 	return &HTTPStorage{
@@ -211,6 +215,7 @@ func (s *HTTPStorage) Close() error {
 			transport.CloseIdleConnections()
 		}
 	}
+
 	return nil
 }
 
@@ -425,7 +430,6 @@ func getDisplayProfileType(filePath string) string {
 		return ProfileTypeUnknown
 	}
 }
-
 
 // Close implements the Storage interface for StdoutStorage
 func (s *StdoutStorage) Close() error {

@@ -100,7 +100,7 @@ func TestSpanProcessingNoGoroutineLeak(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		_, span := StartSpan(context.WithValue(ctx, spanKey{}, profiler), "test-span", "iteration", fmt.Sprintf("%d", i))
 		span.End()
-		
+
 		// Non-blocking send to span channel
 		select {
 		case profiler.spanCh <- span:
@@ -183,7 +183,7 @@ func TestSpanNameBoundedGrowth(t *testing.T) {
 		spanName := fmt.Sprintf("unique-span-%d", i)
 		_, span := StartSpan(context.WithValue(ctx, spanKey{}, profiler), spanName)
 		span.End()
-		
+
 		// Send span
 		select {
 		case profiler.spanCh <- span:
@@ -223,7 +223,7 @@ func TestMemoryProfileRateRestored(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Start the profiler
 	if err := profiler.Start(ctx); err != nil {
 		t.Fatalf("Failed to start profiler: %v", err)
@@ -271,7 +271,7 @@ func BenchmarkSpanProcessing(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, span := StartSpan(context.WithValue(ctx, spanKey{}, profiler), "benchmark-span", "iter", fmt.Sprintf("%d", i))
 		span.End()
-		
+
 		select {
 		case profiler.spanCh <- span:
 		default:

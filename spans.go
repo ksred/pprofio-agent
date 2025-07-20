@@ -26,8 +26,6 @@ func (p *Profiler) processCustomSpans(ctx context.Context) {
 
 	// Map to collect spans by name
 	spans := make(map[string][]*Span)
-
-	// Lock for spans map
 	var spansLock sync.Mutex
 
 	// Ticker for periodic flushing
@@ -36,7 +34,7 @@ func (p *Profiler) processCustomSpans(ctx context.Context) {
 
 	// Track processing goroutines
 	var processingWg sync.WaitGroup
-	defer processingWg.Wait() // Wait for all processing goroutines to complete
+	defer processingWg.Wait()
 
 	// Track unique span names to prevent unbounded growth
 	spanNameCount := 0
@@ -45,69 +43,92 @@ func (p *Profiler) processCustomSpans(ctx context.Context) {
 		select {
 		case span := <-p.spanCh:
 			spansLock.Lock()
-			// Check if this is a new span name
-			if _, exists := spans[span.Name]; !exists {
-				spanNameCount++
-				// If we've exceeded the limit, drop the span and log warning
-				if spanNameCount > MaxUniqueSpanNames {
-					spansLock.Unlock()
-					fmt.Fprintf(os.Stderr, "Warning: Exceeded maximum unique span names (%d), dropping span: %s\n", MaxUniqueSpanNames, span.Name)
-					continue
-				}
+			if p.addSpan(spans, span, &spanNameCount) {
+				spansLock.Unlock()
+				continue
 			}
-			spans[span.Name] = append(spans[span.Name], span)
 			spansLock.Unlock()
 
 		case <-flushTicker.C:
-			// Take a snapshot of current spans and reset
-			spansLock.Lock()
-			if len(spans) > 0 {
-				snapshotSpans := spans
-				spans = make(map[string][]*Span)
-				spanNameCount = 0 // Reset the count
-				spansLock.Unlock()
-
-				// Process spans in a separate goroutine to avoid blocking
-				processingWg.Add(1)
-				go func(snapshot map[string][]*Span) {
-					defer processingWg.Done()
-					if err := p.processSpans(ctx, snapshot); err != nil {
-						fmt.Fprintf(os.Stderr, "Error processing spans: %v\n", err)
-					}
-				}(snapshotSpans)
-			} else {
-				spansLock.Unlock()
-			}
+			p.flushSpans(ctx, &spansLock, spans, &spanNameCount, &processingWg)
 
 		case <-p.stopCh:
-			// Drain any remaining spans in the channel
-			spansLock.Lock()
-			drainLoop:
-			for {
-				select {
-				case span := <-p.spanCh:
-					spans[span.Name] = append(spans[span.Name], span)
-				default:
-					break drainLoop
-				}
-			}
-			// Process any remaining spans
-			if len(spans) > 0 {
-				processingWg.Add(1)
-				finalSpans := spans
-				go func(snapshot map[string][]*Span) {
-					defer processingWg.Done()
-					if err := p.processSpans(ctx, snapshot); err != nil {
-						fmt.Fprintf(os.Stderr, "Error processing final spans: %v\n", err)
-					}
-				}(finalSpans)
-			}
-			spansLock.Unlock()
+			p.drainAndProcessSpans(ctx, &spansLock, spans, &processingWg)
 			return
 
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+// addSpan adds a span to the collection, returns true if the span was dropped
+func (p *Profiler) addSpan(spans map[string][]*Span, span *Span, spanNameCount *int) bool {
+	if _, exists := spans[span.Name]; !exists {
+		*spanNameCount++
+		if *spanNameCount > MaxUniqueSpanNames {
+			fmt.Fprintf(os.Stderr, "Warning: Exceeded maximum unique span names (%d), dropping span: %s\n", MaxUniqueSpanNames, span.Name)
+			return true
+		}
+	}
+
+	spans[span.Name] = append(spans[span.Name], span)
+	return false
+}
+
+// flushSpans flushes collected spans for processing
+func (p *Profiler) flushSpans(ctx context.Context, spansLock *sync.Mutex, spans map[string][]*Span, spanNameCount *int, processingWg *sync.WaitGroup) {
+	spansLock.Lock()
+	defer spansLock.Unlock()
+
+	if len(spans) == 0 {
+		return
+	}
+
+	snapshotSpans := spans
+	for k := range spans {
+		delete(spans, k)
+	}
+	*spanNameCount = 0
+
+	processingWg.Add(1)
+	go func(snapshot map[string][]*Span) {
+		defer processingWg.Done()
+
+		if err := p.processSpans(ctx, snapshot); err != nil {
+			fmt.Fprintf(os.Stderr, "Error processing spans: %v\n", err)
+		}
+	}(snapshotSpans)
+}
+
+// drainAndProcessSpans drains the channel and processes any remaining spans
+func (p *Profiler) drainAndProcessSpans(ctx context.Context, spansLock *sync.Mutex, spans map[string][]*Span, processingWg *sync.WaitGroup) {
+	spansLock.Lock()
+	defer spansLock.Unlock()
+
+	// Drain any remaining spans in the channel
+drainLoop:
+	for {
+		select {
+		case span := <-p.spanCh:
+			spans[span.Name] = append(spans[span.Name], span)
+		default:
+			break drainLoop
+		}
+	}
+
+	// Process any remaining spans
+	if len(spans) > 0 {
+		processingWg.Add(1)
+
+		finalSpans := spans
+		go func(snapshot map[string][]*Span) {
+			defer processingWg.Done()
+
+			if err := p.processSpans(ctx, snapshot); err != nil {
+				fmt.Fprintf(os.Stderr, "Error processing final spans: %v\n", err)
+			}
+		}(finalSpans)
 	}
 }
 
