@@ -13,7 +13,7 @@ import (
 )
 
 // Version is the current package version
-const Version = "0.1.2"
+const Version = "0.1.3"
 
 // applyDefaults applies default values to the configuration
 func applyDefaults(config *Config) {
