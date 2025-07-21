@@ -26,6 +26,7 @@ func (p *Profiler) processCustomSpans(ctx context.Context) {
 
 	// Map to collect spans by name
 	spans := make(map[string][]*Span)
+
 	var spansLock sync.Mutex
 
 	// Ticker for periodic flushing
@@ -73,11 +74,13 @@ func (p *Profiler) addSpan(spans map[string][]*Span, span *Span, spanNameCount *
 	}
 
 	spans[span.Name] = append(spans[span.Name], span)
+
 	return false
 }
 
 // flushSpans flushes collected spans for processing
-func (p *Profiler) flushSpans(ctx context.Context, spansLock *sync.Mutex, spans map[string][]*Span, spanNameCount *int, processingWg *sync.WaitGroup) {
+func (p *Profiler) flushSpans(ctx context.Context, spansLock *sync.Mutex, spans map[string][]*Span,
+	spanNameCount *int, processingWg *sync.WaitGroup) {
 	spansLock.Lock()
 	defer spansLock.Unlock()
 
@@ -86,23 +89,29 @@ func (p *Profiler) flushSpans(ctx context.Context, spansLock *sync.Mutex, spans 
 	}
 
 	snapshotSpans := spans
+
 	for k := range spans {
 		delete(spans, k)
 	}
+
 	*spanNameCount = 0
 
 	processingWg.Add(1)
-	go func(snapshot map[string][]*Span) {
+
+	processFn := func(snapshot map[string][]*Span) {
 		defer processingWg.Done()
 
 		if err := p.processSpans(ctx, snapshot); err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing spans: %v\n", err)
 		}
-	}(snapshotSpans)
+	}
+
+	go processFn(snapshotSpans)
 }
 
 // drainAndProcessSpans drains the channel and processes any remaining spans
-func (p *Profiler) drainAndProcessSpans(ctx context.Context, spansLock *sync.Mutex, spans map[string][]*Span, processingWg *sync.WaitGroup) {
+func (p *Profiler) drainAndProcessSpans(ctx context.Context, spansLock *sync.Mutex,
+	spans map[string][]*Span, processingWg *sync.WaitGroup) {
 	spansLock.Lock()
 	defer spansLock.Unlock()
 

@@ -252,14 +252,14 @@ main() {
         exit 1
     fi
     
-    # Run linter - temporarily disabled
-    # print_info "Running linter..."
-    # if make lint >/dev/null 2>&1; then
-    #     print_success "Linting passed"
-    # else
-    #     print_error "Linting failed"
-    #     exit 1
-    # fi
+    # Run linter
+    print_info "Running linter..."
+    if make lint >/dev/null 2>&1; then
+        print_success "Linting passed"
+    else
+        print_error "Linting failed"
+        exit 1
+    fi
     
     # Check CHANGELOG
     if grep -q "\[Unreleased\]" CHANGELOG.md; then

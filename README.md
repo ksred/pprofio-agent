@@ -111,12 +111,22 @@ cd pprofio
 # Install dependencies
 go mod download
 
+# Install development tools and git hooks
+make install-tools
+make install-hooks
+
 # Run tests
 go test -v -race ./...
 
 # Run linting
 golangci-lint run --timeout=10m
 ```
+
+#### Git Hooks
+
+This project uses git hooks to ensure code quality. After cloning, run `make install-hooks` to set up:
+
+- **pre-commit**: Automatically checks that all Go files are properly formatted with `gofmt` before allowing commits
 
 ## Implementation Phases
 

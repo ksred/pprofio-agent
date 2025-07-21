@@ -106,19 +106,14 @@ print_success "All tests passed"
 print_status "Running code quality checks..."
 if command -v golangci-lint &> /dev/null; then
     if ! golangci-lint run --timeout=10m; then
-        print_warning "Linting issues detected. Consider fixing before release."
-        echo
-        echo -e "${YELLOW}Continue with release despite linting issues? (y/N):${NC}"
-        read -r CONTINUE
-        if [[ "$CONTINUE" != "y" && "$CONTINUE" != "Y" ]]; then
-            print_error "Release cancelled due to linting issues"
-            exit 1
-        fi
+        print_error "Linting issues detected. Please fix all linting errors before releasing."
+        exit 1
     else
         print_success "Code quality checks passed"
     fi
 else
-    print_warning "golangci-lint not found. Skipping linting checks."
+    print_error "golangci-lint not found. Please install golangci-lint before releasing."
+    exit 1
 fi
 
 # Check if go.mod is tidy

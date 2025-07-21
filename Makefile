@@ -202,6 +202,11 @@ install-tools: ## Install development tools
 	$(GOGET) golang.org/x/tools/cmd/goimports@latest
 	$(GOGET) github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
 
+.PHONY: install-hooks
+install-hooks: ## Install git hooks
+	@echo "Installing git hooks..."
+	@./scripts/install-hooks.sh
+
 .PHONY: mod-vendor
 mod-vendor: ## Create vendor directory
 	$(GOMOD) vendor
