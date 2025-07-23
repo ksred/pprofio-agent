@@ -192,6 +192,13 @@ func (p *Profiler) stop() {
 		p.config.Storage.Close()
 	}
 
+	// Close HTTP metrics storage
+	if p.httpStorage != nil {
+		if err := p.httpStorage.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing HTTP metrics storage: %v\n", err)
+		}
+	}
+
 	p.initialized = false
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -41,6 +42,10 @@ type Profiler struct {
 	originalMemProfileRate   int
 	originalMutexFraction    int
 	originalBlockProfileRate int
+
+	// HTTP Metrics
+	metricsCollector *MetricsCollector
+	httpStorage      *HTTPMetricsStorage
 }
 
 // newProfiler is the internal constructor used by New
@@ -53,6 +58,34 @@ func newProfiler(config Config) (*Profiler, error) {
 		config: config,
 		stopCh: make(chan struct{}),
 		spanCh: make(chan *Span, DefaultSpanBufferSize), // Buffer for custom spans
+	}
+
+	// Initialize HTTP metrics collector if enabled
+	if config.EnableHTTPMetrics {
+		// Create HTTP metrics storage backend
+		if !config.OutputToStdout {
+			p.httpStorage = NewHTTPMetricsStorage(
+				config.IngestURL,
+				config.APIKey,
+				config.HTTPMetricsBatchSize,
+				config.HTTPMetricsFlushInterval,
+			)
+		}
+
+		middlewareConfig := MiddlewareConfig{
+			Enabled:          true,
+			SampleRate:       config.HTTPMetricsSampleRate,
+			ExcludedPaths:    config.HTTPMetricsExcludePaths,
+			IncludeHeaders:   config.HTTPMetricsIncludeHeaders,
+			MaxPayloadSize:   config.HTTPMetricsMaxPayloadSize,
+			CollectUserAgent: config.HTTPMetricsCollectUserAgent,
+			HashIPs:          config.HTTPMetricsHashIPs,
+		}
+
+		p.metricsCollector = NewMetricsCollector(middlewareConfig)
+
+		// Set up the metrics handler to send HTTP metrics through the profiler's storage
+		p.metricsCollector.SetMetricsHandler(p.handleHTTPMetrics)
 	}
 
 	return p, nil
@@ -254,4 +287,61 @@ func (p *Profiler) uploadProfile(ctx context.Context, filePath, _ string) error 
 	}
 
 	return nil
+}
+
+// handleHTTPMetrics processes HTTP metrics and sends them to the configured storage
+func (p *Profiler) handleHTTPMetrics(metrics *RequestMetrics) {
+	// Add service metadata from config
+	if p.config.ServiceName != "" {
+		metrics.Service = p.config.ServiceName
+	}
+
+	if env, ok := p.config.Tags["environment"]; ok {
+		metrics.Environment = env
+	}
+
+	if version, ok := p.config.Tags["version"]; ok {
+		metrics.Version = version
+	}
+
+	if region, ok := p.config.Tags["region"]; ok {
+		metrics.Region = region
+	}
+
+	// Add remaining tags
+	if metrics.Tags == nil {
+		metrics.Tags = make(map[string]string)
+	}
+
+	for k, v := range p.config.Tags {
+		// Skip the ones we already moved to top-level fields
+		if k != "environment" && k != "version" && k != "region" {
+			metrics.Tags[k] = v
+		}
+	}
+
+	// Send to appropriate storage
+	if p.config.OutputToStdout {
+		// Output to stderr in development mode
+		fmt.Fprintf(os.Stderr, "HTTP Metric: %s %s %d %v\n",
+			metrics.Method, metrics.Path, metrics.StatusCode, metrics.Duration)
+	} else if p.httpStorage != nil {
+		// Send to Pprofio API endpoints
+		if err := p.httpStorage.SubmitMetric(metrics); err != nil {
+			fmt.Fprintf(os.Stderr, "Error submitting HTTP metric: %v\n", err)
+		}
+	}
+}
+
+// HTTPMiddleware returns HTTP middleware that collects request metrics
+// This integrates HTTP metrics collection directly into the profiler
+func (p *Profiler) HTTPMiddleware() func(http.Handler) http.Handler {
+	if !p.config.EnableHTTPMetrics || p.metricsCollector == nil {
+		// Return a no-op middleware if HTTP metrics are disabled
+		return func(next http.Handler) http.Handler {
+			return next
+		}
+	}
+
+	return p.metricsCollector.HTTPMiddleware()
 }
