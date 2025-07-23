@@ -56,19 +56,7 @@ func (p *Profiler) ForGin() func(http.Handler) http.Handler {
 //
 // This is a convenience method that handles the gin.WrapH conversion automatically
 func (p *Profiler) GinMiddleware() interface{} {
-	// Return a function that matches gin.HandlerFunc signature
-	return func(c interface{}) {
-		// This is a placeholder that demonstrates the concept
-		// In practice, this would need proper gin.Context handling
-		// The actual implementation would be:
-		//
-		// return gin.WrapH(middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//     c.(*gin.Context).Next()
-		// })))
-		//
-		// But since we don't import Gin, we provide instructions instead
-
-		// Users should use: gin.WrapH(profiler.HTTPMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})))
+	return func(_ interface{}) {
 		panic("Use gin.WrapH(profiler.HTTPMiddleware()(dummyHandler)) instead - see documentation")
 	}
 }

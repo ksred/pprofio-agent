@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	// DefaultHTTPClientTimeout is the default timeout for HTTP requests
+	DefaultHTTPClientTimeout = 30 * time.Second
+)
+
 // HTTPMetricsStorage handles sending HTTP metrics to the Pprofio API endpoints
 type HTTPMetricsStorage struct {
 	baseURL string
@@ -22,13 +27,12 @@ type HTTPMetricsStorage struct {
 	flushInterval time.Duration
 
 	// Batching state
-	mu         sync.Mutex
-	batch      []*RequestMetrics
-	lastFlush  time.Time
-	flushTimer *time.Timer
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
+	mu        sync.Mutex
+	batch     []*RequestMetrics
+	lastFlush time.Time
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
 }
 
 // BatchMetrics represents a batch of HTTP metrics for submission
@@ -54,7 +58,7 @@ func NewHTTPMetricsStorage(baseURL, apiKey string, batchSize int, flushInterval 
 	storage := &HTTPMetricsStorage{
 		baseURL:       baseURL,
 		apiKey:        apiKey,
-		client:        &http.Client{Timeout: 30 * time.Second},
+		client:        &http.Client{Timeout: DefaultHTTPClientTimeout},
 		batchSize:     batchSize,
 		flushInterval: flushInterval,
 		batch:         make([]*RequestMetrics, 0, batchSize),
@@ -171,7 +175,8 @@ func (h *HTTPMetricsStorage) getServiceFromBatch() string {
 	if len(h.batch) > 0 && h.batch[0].Service != "" {
 		return h.batch[0].Service
 	}
-	return "unknown"
+
+	return ProfileTypeUnknown
 }
 
 // backgroundFlusher runs in the background and flushes batches based on time intervals
@@ -202,6 +207,7 @@ func (h *HTTPMetricsStorage) backgroundFlusher() {
 				}
 			}
 			h.mu.Unlock()
+
 			return
 		}
 	}

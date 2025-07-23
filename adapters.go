@@ -14,6 +14,12 @@ const (
 	DefaultHTTPStatusInternalServerError = 500
 	PanicStatusCode                      = 500
 	DefaultStatusCode                    = 200
+
+	// Tag keys for service metadata
+	TagKeyService     = "service"
+	TagKeyEnvironment = "environment"
+	TagKeyVersion     = "version"
+	TagKeyRegion      = "region"
 )
 
 // requestIDKey is the context key for storing request IDs
@@ -178,13 +184,13 @@ func (ma *MiddlewareAdapter) collectMetrics(r *http.Request, rw *enhancedRespons
 	ma.mu.RLock()
 	for k, v := range ma.tags {
 		switch k {
-		case "service":
+		case TagKeyService:
 			metrics.Service = v
-		case "environment":
+		case TagKeyEnvironment:
 			metrics.Environment = v
-		case "version":
+		case TagKeyVersion:
 			metrics.Version = v
-		case "region":
+		case TagKeyRegion:
 			metrics.Region = v
 		default:
 			// Keep remaining tags in the tags field
