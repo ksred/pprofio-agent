@@ -91,7 +91,7 @@ func (h *HTTPMetricsStorage) SubmitMetric(metric *RequestMetrics) error {
 
 // SubmitSingle sends a single HTTP metric immediately
 func (h *HTTPMetricsStorage) SubmitSingle(metric *RequestMetrics) error {
-	url := fmt.Sprintf("%s/api/v1/http-metrics", h.baseURL)
+	url := fmt.Sprintf("%s/http-metrics", h.baseURL)
 
 	jsonData, err := json.Marshal(metric)
 	if err != nil {
@@ -125,7 +125,7 @@ func (h *HTTPMetricsStorage) flushBatch() error {
 		return nil
 	}
 
-	url := fmt.Sprintf("%s/api/v1/http-metrics/batch", h.baseURL)
+	url := fmt.Sprintf("%s/http-metrics/batch", h.baseURL)
 
 	// Create batch with metadata
 	batchMetrics := BatchMetrics{
