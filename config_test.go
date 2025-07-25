@@ -31,13 +31,13 @@ func TestConfigValidation(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Missing IngestURL",
+			name: "Missing IngestURL uses default",
 			config: Config{
 				APIKey:      "test-key",
 				Storage:     &HTTPStorage{URL: "https://api.pprofio.com/upload", APIKey: "test-key"},
 				ServiceName: "test-service",
 			},
-			wantErr: true,
+			wantErr: false, // Now uses default, so no error
 		},
 		{
 			name: "Missing Storage",
