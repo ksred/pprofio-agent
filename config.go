@@ -59,13 +59,15 @@ type Config struct {
 }
 
 func (c *Config) validate() error {
-	if err := c.validateRequiredFields(); err != nil {
-		return err
-	}
-
+	// Apply defaults first before validation
 	c.setDefaults()
 	c.ensureAtLeastOneProfileEnabled()
 	c.setHostnameIfEmpty()
+
+	// Then validate required fields
+	if err := c.validateRequiredFields(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -162,7 +164,7 @@ func DefaultConfig(apiKey, ingestURL, serviceName string) Config {
 		IngestURL:         ingestURL,
 		SampleRate:        DefaultSampleRate,
 		ProfileDuration:   DefaultProfileDuration,
-		Storage:           &HTTPStorage{URL: ingestURL + UploadPath, APIKey: apiKey},
+		Storage:           &HTTPStorage{URL: ingestURL + UploadPath, APIKey: apiKey, Env: "production"},
 		ServiceName:       serviceName,
 		Tags:              make(map[string]string),
 		MemProfileRate:    DefaultMemProfileRate,
@@ -186,7 +188,7 @@ func ComprehensiveConfig(apiKey, ingestURL, serviceName string) Config {
 		IngestURL:         ingestURL,
 		SampleRate:        DefaultSampleRate,
 		ProfileDuration:   DefaultProfileDuration,
-		Storage:           &HTTPStorage{URL: ingestURL + UploadPath, APIKey: apiKey},
+		Storage:           &HTTPStorage{URL: ingestURL + UploadPath, APIKey: apiKey, Env: "production"},
 		ServiceName:       serviceName,
 		Tags:              make(map[string]string),
 		MemProfileRate:    DefaultMemProfileRate,

@@ -47,7 +47,13 @@ func configureStorage(config *Config) {
 	if config.OutputToStdout {
 		config.Storage = NewStdoutStorage()
 	} else if config.Storage == nil && config.APIKey != "" && config.IngestURL != "" {
-		config.Storage = NewHTTPStorage(config.IngestURL+"/upload", config.APIKey, config.Env)
+		// Default to production environment if not specified
+		env := config.Env
+		if env == "" {
+			env = "production"
+		}
+
+		config.Storage = NewHTTPStorage(config.IngestURL+"/upload", config.APIKey, env)
 	}
 }
 

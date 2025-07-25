@@ -239,6 +239,11 @@ func (p *Profiler) uploadProfile(ctx context.Context, filePath, _ string) error 
 	// Upload the profile and parse the returned JSON response
 	uploadResp, err := p.config.Storage.Upload(ctx, filePath)
 	if err != nil {
+		// Log additional details about the storage configuration
+		if httpStorage, ok := p.config.Storage.(*HTTPStorage); ok {
+			fmt.Fprintf(os.Stderr, "pprofio: upload failed for URL=%s, Env=%s\n", httpStorage.URL, httpStorage.Env)
+		}
+
 		return fmt.Errorf("failed to upload profile: %w", err)
 	}
 
