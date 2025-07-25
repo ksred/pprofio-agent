@@ -105,7 +105,7 @@ func (s *HTTPStorage) Upload(ctx context.Context, filePath string) (string, erro
 	}
 
 	if parsedURL.Scheme != HTTPSScheme && s.Env != LocalEnv {
-		httpsErr := errors.New("HTTPS is required for secure uploads")
+		httpsErr := errors.New("HTTPS is required for secure uploads: " + s.URL)
 
 		fmt.Fprintf(os.Stderr, "pprofio: upload blocked - HTTPS required for URL %s (env=%s)\n", s.URL, s.Env)
 
