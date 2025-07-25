@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -38,18 +39,24 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 	// Validate URL
 	parsedURL, err := url.Parse(m.ingestURL)
 	if err != nil {
-		return fmt.Errorf("invalid ingest URL: %w", err)
+		metadataErr := fmt.Errorf("invalid ingest URL: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: %v\n", metadataErr)
+		return metadataErr
 	}
 	// Skip HTTPS check in tests if running a localhost/127.0.0.1 URL
 	if parsedURL.Scheme != "https" && !strings.Contains(parsedURL.Host, "localhost") &&
 		!strings.Contains(parsedURL.Host, "127.0.0.1") {
-		return fmt.Errorf("HTTPS is required for ingest URL")
+		httpsErr := fmt.Errorf("HTTPS is required for ingest URL")
+		fmt.Fprintf(os.Stderr, "pprofio: metadata endpoint requires HTTPS: %s\n", m.ingestURL)
+		return httpsErr
 	}
 
 	// Marshal metadata to JSON
 	payload, err := json.Marshal(metadata)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+		marshalErr := fmt.Errorf("failed to marshal metadata: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: %v\n", marshalErr)
+		return marshalErr
 	}
 
 	// Send with retries
@@ -58,6 +65,7 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 	for attempt := 0; attempt < m.retries; attempt++ {
 		if err := m.sendRequest(ctx, payload); err != nil {
 			lastErr = err
+			fmt.Fprintf(os.Stderr, "pprofio: error sending metadata to %s/metadata: %v (attempt %d/%d)\n", m.ingestURL, err, attempt+1, m.retries)
 			// Exponential backoff
 			backoffMs := (1 << attempt) * BackoffBaseMs
 			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
@@ -68,7 +76,9 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 		return nil
 	}
 
-	return fmt.Errorf("failed to send metadata after %d attempts: %w", m.retries, lastErr)
+	finalErr := fmt.Errorf("failed to send metadata after %d attempts: %w", m.retries, lastErr)
+	fmt.Fprintf(os.Stderr, "pprofio: %v\n", finalErr)
+	return finalErr
 }
 
 func (m *metadataClient) sendRequest(ctx context.Context, payload []byte) error {

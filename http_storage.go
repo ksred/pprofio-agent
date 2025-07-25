@@ -95,12 +95,16 @@ func (h *HTTPMetricsStorage) SubmitSingle(metric *RequestMetrics) error {
 
 	jsonData, err := json.Marshal(metric)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metric: %w", err)
+		marshalErr := fmt.Errorf("failed to marshal metric: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: %v\n", marshalErr)
+		return marshalErr
 	}
 
 	req, err := http.NewRequestWithContext(h.ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		reqErr := fmt.Errorf("failed to create request: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: error creating HTTP metrics request to %s: %v\n", url, err)
+		return reqErr
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -108,12 +112,16 @@ func (h *HTTPMetricsStorage) SubmitSingle(metric *RequestMetrics) error {
 
 	resp, err := h.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send HTTP metric: %w", err)
+		sendErr := fmt.Errorf("failed to send HTTP metric: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: error sending HTTP metric to %s: %v\n", url, err)
+		return sendErr
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("HTTP metrics API returned status %d", resp.StatusCode)
+		statusErr := fmt.Errorf("HTTP metrics API returned status %d", resp.StatusCode)
+		fmt.Fprintf(os.Stderr, "pprofio: HTTP metrics API at %s returned status %d\n", url, resp.StatusCode)
+		return statusErr
 	}
 
 	return nil
@@ -142,12 +150,16 @@ func (h *HTTPMetricsStorage) flushBatch() error {
 
 	jsonData, err := json.Marshal(batchMetrics)
 	if err != nil {
-		return fmt.Errorf("failed to marshal batch: %w", err)
+		marshalErr := fmt.Errorf("failed to marshal batch: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: error marshaling HTTP metrics batch: %v\n", err)
+		return marshalErr
 	}
 
 	req, err := http.NewRequestWithContext(h.ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create batch request: %w", err)
+		reqErr := fmt.Errorf("failed to create batch request: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: error creating HTTP metrics batch request to %s: %v\n", url, err)
+		return reqErr
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -155,12 +167,16 @@ func (h *HTTPMetricsStorage) flushBatch() error {
 
 	resp, err := h.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send HTTP metrics batch: %w", err)
+		sendErr := fmt.Errorf("failed to send HTTP metrics batch: %w", err)
+		fmt.Fprintf(os.Stderr, "pprofio: error sending HTTP metrics batch to %s: %v\n", url, err)
+		return sendErr
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("HTTP metrics batch API returned status %d", resp.StatusCode)
+		statusErr := fmt.Errorf("HTTP metrics batch API returned status %d", resp.StatusCode)
+		fmt.Fprintf(os.Stderr, "pprofio: HTTP metrics batch API at %s returned status %d\n", url, resp.StatusCode)
+		return statusErr
 	}
 
 	// Clear the batch after successful submission

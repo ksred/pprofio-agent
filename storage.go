@@ -105,7 +105,9 @@ func (s *HTTPStorage) Upload(ctx context.Context, filePath string) (string, erro
 	}
 
 	if parsedURL.Scheme != HTTPSScheme && s.Env != LocalEnv {
-		return "", errors.New("HTTPS is required for secure uploads")
+		httpsErr := errors.New("HTTPS is required for secure uploads")
+		fmt.Fprintf(os.Stderr, "pprofio: upload blocked - HTTPS required for URL %s (env=%s)\n", s.URL, s.Env)
+		return "", httpsErr
 	}
 
 	// Open and compress the file
@@ -161,6 +163,7 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 		req, err := http.NewRequestWithContext(ctx, "POST", s.URL, bytes.NewReader(data))
 		if err != nil {
 			lastErr = fmt.Errorf("failed to create request: %w", err)
+			fmt.Fprintf(os.Stderr, "pprofio: error creating request to %s: %v\n", s.URL, err)
 			continue
 		}
 
@@ -172,25 +175,30 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 		resp, err := s.Client.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
+			fmt.Fprintf(os.Stderr, "pprofio: error uploading profile to %s: %v\n", s.URL, err)
 			continue
 		}
 
 		// Handle HTTP errors
 		if resp.StatusCode == HTTPStatusUnauthorized || resp.StatusCode == HTTPStatusForbidden {
 			resp.Body.Close()
-			return "", fmt.Errorf("authentication failed: %d", resp.StatusCode)
+			authErr := fmt.Errorf("authentication failed: %d", resp.StatusCode)
+			fmt.Fprintf(os.Stderr, "pprofio: authentication error for %s: status=%d\n", s.URL, resp.StatusCode)
+			return "", authErr
 		}
 
 		if shouldRetry(resp.StatusCode) {
 			resp.Body.Close()
 			lastErr = fmt.Errorf("server error: %d", resp.StatusCode)
-
+			fmt.Fprintf(os.Stderr, "pprofio: server error from %s: status=%d (attempt %d/%d)\n", s.URL, resp.StatusCode, attempt+1, s.Retries)
 			continue
 		}
 
 		if resp.StatusCode < HTTPStatusOK || resp.StatusCode >= HTTPStatusMultipleChoices {
 			resp.Body.Close()
-			return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			statusErr := fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			fmt.Fprintf(os.Stderr, "pprofio: unexpected status from %s: %d\n", s.URL, resp.StatusCode)
+			return "", statusErr
 		}
 
 		// Read response
@@ -199,12 +207,14 @@ func (s *HTTPStorage) uploadWithRetries(ctx context.Context, data []byte) (strin
 
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response: %w", err)
+			fmt.Fprintf(os.Stderr, "pprofio: error reading response from %s: %v\n", s.URL, err)
 			continue
 		}
 
 		return string(body), nil
 	}
 
+	fmt.Fprintf(os.Stderr, "pprofio: upload to %s failed after %d attempts: %v\n", s.URL, s.Retries, lastErr)
 	return "", fmt.Errorf("upload failed after %d attempts: %w", s.Retries, lastErr)
 }
 
