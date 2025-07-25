@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2025-01-25
+
+### Added
+- Enhanced error logging to stderr for all HTTP operations (profile uploads, metadata submission, HTTP metrics)
+- Detailed error messages now include URLs and environment information for easier debugging
+- Support for creating profiler without specifying IngestURL (defaults to https://api.pprofio.com/api/v1)
+- Minimal example demonstrating usage without explicit URL configuration
+
+### Fixed
+- Default IngestURL now properly applied before validation when not specified in config
+- HTTPStorage environment defaults to "production" when not specified, preventing HTTPS validation errors
+- Profile collection continues after upload errors instead of stopping
+- Fixed config validation order to apply defaults before checking required fields
+
+### Changed
+- Improved error logging format with consistent "pprofio:" prefix for all error messages
+- Config validation now applies defaults before checking required fields
+
 ## [Unreleased]
 
 ### Added
