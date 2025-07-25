@@ -130,6 +130,11 @@ func (c *Config) setDefaults() {
 	if c.EnableHTTPMetrics && len(c.HTTPMetricsExcludePaths) == 0 {
 		c.HTTPMetricsExcludePaths = []string{"/health", "/metrics", "/ping"}
 	}
+
+	// Set default URL
+	if c.IngestURL == "" {
+		c.IngestURL = DefaultIngestURL
+	}
 }
 
 func (c *Config) ensureAtLeastOneProfileEnabled() {

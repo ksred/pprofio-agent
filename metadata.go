@@ -41,6 +41,7 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 	if err != nil {
 		metadataErr := fmt.Errorf("invalid ingest URL: %w", err)
 		fmt.Fprintf(os.Stderr, "pprofio: %v\n", metadataErr)
+
 		return metadataErr
 	}
 	// Skip HTTPS check in tests if running a localhost/127.0.0.1 URL
@@ -48,6 +49,7 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 		!strings.Contains(parsedURL.Host, "127.0.0.1") {
 		httpsErr := fmt.Errorf("HTTPS is required for ingest URL")
 		fmt.Fprintf(os.Stderr, "pprofio: metadata endpoint requires HTTPS: %s\n", m.ingestURL)
+
 		return httpsErr
 	}
 
@@ -56,6 +58,7 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 	if err != nil {
 		marshalErr := fmt.Errorf("failed to marshal metadata: %w", err)
 		fmt.Fprintf(os.Stderr, "pprofio: %v\n", marshalErr)
+
 		return marshalErr
 	}
 
@@ -78,6 +81,7 @@ func (m *metadataClient) sendMetadata(ctx context.Context, metadata map[string]s
 
 	finalErr := fmt.Errorf("failed to send metadata after %d attempts: %w", m.retries, lastErr)
 	fmt.Fprintf(os.Stderr, "pprofio: %v\n", finalErr)
+
 	return finalErr
 }
 
