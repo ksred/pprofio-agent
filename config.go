@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	DefaultIngestURL                = "https://api.pprofio.com/api/v1"
 	DefaultSampleRate               = 60 * time.Second
 	DefaultProfileDuration          = 10 * time.Second
 	DefaultMemProfileRate           = 4096

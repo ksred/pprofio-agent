@@ -36,6 +36,10 @@ func applyDefaults(config *Config) {
 	if config.BlockProfileRate == 0 {
 		config.BlockProfileRate = DefaultBlockProfileRate
 	}
+
+	if config.IngestURL == "" {
+		config.IngestURL = DefaultIngestURL
+	}
 }
 
 // configureStorage sets up the storage backend
