@@ -277,12 +277,19 @@ main() {
     # Update version in code
     print_info "Updating version in pprofio.go..."
     local version_without_v=${new_version#v}
-    sed -i.bak "s/const Version = \".*\"/const Version = \"${version_without_v}\"/" pprofio.go && rm pprofio.go.bak
     
-    # Commit version change
-    git add pprofio.go
-    git commit -m "chore: bump version to ${new_version}" >/dev/null 2>&1
-    print_success "Version updated in code"
+    # Check if version is already set correctly
+    local current_version=$(grep 'const Version = ' pprofio.go | sed 's/.*"\(.*\)".*/\1/')
+    if [ "$current_version" = "$version_without_v" ]; then
+        print_success "Version already set to ${version_without_v}"
+    else
+        sed -i.bak "s/const Version = \".*\"/const Version = \"${version_without_v}\"/" pprofio.go && rm pprofio.go.bak
+        
+        # Commit version change
+        git add pprofio.go
+        git commit -m "chore: bump version to ${new_version}" >/dev/null 2>&1
+        print_success "Version updated in code"
+    fi
     
     # Final confirmation
     echo
