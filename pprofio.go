@@ -73,7 +73,12 @@ func New(config Config) (*Profiler, error) {
 	configureStorage(&config)
 	enableDefaultProfiles(&config)
 
-	return newProfiler(config)
+	profiler, err := newProfiler(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create profiler (%s): %w", Version, err)
+	}
+
+	return profiler, nil
 }
 
 // Start begins collecting and uploading profiles based on the configuration.

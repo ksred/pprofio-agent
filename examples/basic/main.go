@@ -16,9 +16,9 @@ import (
 func main() {
 	// Configure the profiler with HTTP metrics enabled
 	cfg := pprofio.Config{
-		APIKey:          "test-api-key",                 // Not used with file storage but required
-		IngestURL:       "http://localhost:8085/api/v1", // Not used with file storage but required
-		SampleRate:      10 * time.Second,               // More frequent for demonstration
+		APIKey: "test-api-key", // Not used with file storage but required
+		//IngestURL:       "http://localhost:8085/api/v1", // Not used with file storage but required
+		SampleRate:      10 * time.Second, // More frequent for demonstration
 		ProfileDuration: 5 * time.Second,
 		ServiceName:     "example-service",
 		Tags:            map[string]string{"env": "local", "version": "1.0.0", "team": "backend"},

@@ -181,7 +181,7 @@ run-basic-example: ## Build and run the basic example for demonstration
 	@echo "Building and running basic example..."
 	@echo "This demonstrates the basic usage of the pprofio package:"
 	@echo "----------------------------------------"
-	@cd examples/basic && go run main.go
+	@cd examples/basic && go run main.go workload.go
 	@echo "----------------------------------------"
 	@echo "Example demonstration completed!"
 
